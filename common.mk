@@ -183,6 +183,7 @@ endif
 LIBARITH = $(BUILD_DIR)/libarith.a
 LIBEC = $(BUILD_DIR)/libec.a
 LIBSIGN = $(BUILD_DIR)/libsign.a
+LIBTGDH = $(BUILD_DIR)/libtgdh.a
 
 # Compile dynamic libraries if the user asked to
 ifeq ($(WITH_DYNAMIC_LIBS),1)
@@ -190,6 +191,7 @@ ifeq ($(WITH_DYNAMIC_LIBS),1)
 LIBARITH_DYN = $(BUILD_DIR)/libarith.so
 LIBEC_DYN = $(BUILD_DIR)/libec.so
 LIBSIGN_DYN = $(BUILD_DIR)/libsign.so
+LIBTGDH_DYN = $(BUILD_DIR)/libtgdh.so
 # The ld flags to generate shared librarie
 LIB_DYN_LDFLAGS ?= -shared -Wl,-z,relro,-z,now
 endif

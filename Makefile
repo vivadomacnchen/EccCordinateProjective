@@ -113,11 +113,19 @@ $(LIBARITH_DYN): $(LIBARITH_OBJECTS)
 endif
 
 # curve module
+src/tgdh/%.d: src/nn/%.c $(NN_CONFIG) $(CFG_DEPS)
+	$(if $(filter $(wildcard src/nn/*.c), $<), @$(CC) $(LIB_CFLAGS) -MM $< -MF $@)
 
+src/tgsh/%.o: src/nn/%.c $(NN_CONFIG) $(CFG_DEPS)
+	$(if $(filter $(wildcard src/nn/*.c), $<), $(CC) $(LIB_CFLAGS) -c $< -o $@)
 CURVES_SRC = $(wildcard src/curves/*.c)
 CURVES_OBJECTS = $(patsubst %.c, %.o, $(CURVES_SRC))
 CURVES_DEPS = $(patsubst %.c, %.d, $(CURVES_SRC))
-
+#tgdh module
+TGDH_SRC= $(wildcard src/tgdh/*.c)
+TGDH_OBJECTS = $(patsubst %.c, %.o, $(TGDH_SRC))
+TGDH_DEPS = $(patsubst %.c, %.d, $(TGDH_SRC))
+#
 src/curves/%.d: src/curves/%.c $(NN_CONFIG) $(CFG_DEPS)
 	$(if $(filter $(wildcard src/curves/*.c), $<), @$(CC) $(LIB_CFLAGS) -MM $< -MF $@)
 
@@ -183,6 +191,10 @@ ifeq ($(WITH_DYNAMIC_LIBS),1)
 $(LIBSIGN_DYN): $(LIBSIGN_OBJECTS)
 	$(CC) $(LIB_CFLAGS) $(LIB_DYN_LDFLAGS) $^ -o $@
 endif
+
+# TGDH module
+LIBEC_OBJECTS = 
+#
 
 # Test elements (objects and binaries)
 
