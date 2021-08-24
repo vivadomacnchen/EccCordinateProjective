@@ -47,10 +47,10 @@ cliques@ics.uci.edu. */
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include "openssl/bn.h"
-#include "openssl/dsa.h"
-#include "openssl/x509.h"
-#include "openssl/asn1.h"
+//#include "openssl/bn.h"
+//#include "openssl/dsa.h"
+//#include "openssl/x509.h"
+//#include "openssl/asn1.h"
 
 #include "common.h"
 

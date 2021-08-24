@@ -169,7 +169,18 @@ src/sig/%.d: src/sig/%.c $(NN_CONFIG) $(CFG_DEPS)
 src/sig/%.o: src/sig/%.c $(NN_CONFIG) $(CFG_DEPS)
 	$(if $(filter $(wildcard src/sig/*.c), $<), $(CC) $(LIB_CFLAGS) -c $< -o $@)
 
+#ccw+s
+src/tgdh/%d: src/tgdh/%.c $(NN_CONFIG) $(CFG_DEPS)
+	$(if $(filter $(wildcard src/tgdh/*.c), $<), @$(CC) $(LIB_CFLAGS) -MM $< -MF $@)
+src/tgdh/%.o: src/tgdh/%.c $(NN_CONFIG) $(CFG_DEPS)
+	$(if $(filter $(wildcard src/tgdh/*.c), $<), $(CC) $(LIB_CFLAGS) -c $< -o $@)
 
+TGDH_SRC = src/tgdh/tgdh_api_misc.c src/tgdh/src/tgdh/tgdh_api.c src/tgdh/src/tgdh/tgdh_api.c src/tgdh/src/tgdh/tgdh_api_misc.c src/tgdh/src/tgdh/tgdh_sig.c src/tgdh/src/tgdh/sig_algs.c 
+TGDH_OBJECTS = $(patsubst %.c, %.o, $(TGDH_SRC))
+TGDH_DEPS = $(patsubst %.c, %.d, $(TGDH_SRC))
+
+
+#ccw+e
 KEY_SRC = src/sig/ec_key.c
 KEY_OBJECTS = $(patsubst %.c, %.o, $(KEY_SRC))
 KEY_DEPS = $(patsubst %.c, %.d, $(KEY_SRC))
@@ -193,7 +204,7 @@ $(LIBSIGN_DYN): $(LIBSIGN_OBJECTS)
 endif
 
 # TGDH module
-LIBEC_OBJECTS = 
+#LIBEC_OBJECTS = //TODO
 #
 
 # Test elements (objects and binaries)
@@ -237,30 +248,31 @@ $(BUILD_DIR)/ec_self_tests: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EX
 #	@echo $(BIN_LDFLAGS)
 
 #ccw- s
-$(BUILD_DIR)/ec_utils: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN)
+$(BUILD_DIR)/ec_utils: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN) $(TGDH_SRC)
 	$(CC) $(BIN_CFLAGS) $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
 #ccw- e
 #ccw+ s
 #$(BUILD_DIR)/ec_utils: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN)
-	$(CC) $(BIN_CFLAGS) -static -static-libgcc $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
+#	$(CC) $(BIN_CFLAGS) -static -static-libgcc $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
 #ccw+ e
 #mytest:	$(CFG_DEPS) $(DEPENDS) $(EXT_DEPS_OBJECTS) $(LIBS)
-#	@echo mytestmake
-#	@echo $(LIBS)
-#	@echo $(CFG_DEPS)
-#	@echo $^
-#	@echo $<
-#	@echo $(VPATH)
-#	@echo $(PATH)
-#	@echo showLIBRARY_PATH
-#	@echo $(LIBRARY_PATH)
-#	@echo showLD_LIBRARY_PATH
-#	@echo $(LD_LIBRARY_PATH)
-#	@echo MINGW
-#	@echo $(MINGW)
-#	@echo APPLE
-#	@echo $(APPLE)
-#	$(CC) $(BIN_CFLAGS) $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ mytest.c -o $@
+$(BUILD_DIR)/mytest: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN) $(TGDH_OBJECTS)
+	@echo mytestmake
+	@echo $(LIBS)
+	@echo $(CFG_DEPS)
+	@echo $^
+	@echo $<
+	@echo $(VPATH)
+	@echo $(PATH)
+	@echo showLIBRARY_PATH
+	@echo $(LIBRARY_PATH)
+	@echo showLD_LIBRARY_PATH
+	@echo $(LD_LIBRARY_PATH)
+	@echo MINGW
+	@echo $(MINGW)
+	@echo APPLE
+	@echo $(APPLE)
+	$(CC) $(BIN_CFLAGS) -static $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
 # If the user asked for dynamic libraries, compile versions of our binaries against them
 ifeq ($(WITH_DYNAMIC_LIBS),1)
 $(BUILD_DIR)/ec_self_tests_dyn: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EXT_DEPS_OBJECTS)

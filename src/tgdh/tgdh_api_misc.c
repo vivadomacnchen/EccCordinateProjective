@@ -61,11 +61,11 @@ int print=1;
 #endif
 
 /* SSL include files */
-#include "openssl/bio.h"
-#include "openssl/dsa.h"
-#include "openssl/bn.h"
-#include "openssl/rand.h"
-#include "openssl/md5.h"
+//#include "openssl/bio.h"
+//#include "openssl/dsa.h"
+//#include "openssl/bn.h"
+//#include "openssl/rand.h"
+//#include "openssl/md5.h"
 
 /* TGDH_API include files */
 #include "tgdh_api.h"
@@ -76,6 +76,9 @@ int print=1;
 #include <dmalloc.h>
 #endif
 
+#ifndef MD5_DIGEST_LENGTH
+#define MD5_DIGEST_LENGTH 32
+#endif
 
 #ifdef MEMCHECK
 int number_malloc[length_memcheck];
@@ -316,7 +319,7 @@ void tgdh_print_bkey(char *name, KEY_TREE *tree) {
 
 int compare_key(TGDH_CONTEXT *ctx[], int num) {
   int i=0;
-  BIGNUM *tmp_key=NULL;
+  nn *tmp_key=NULL;
 
   for(i=0; i<num; i++)
     if(ctx[i])

@@ -45,7 +45,7 @@ cliques@ics.uci.edu. */
 
 #include <stdio.h>
 
-#include "openssl/dsa.h"
+//#include "openssl/dsa.h"
 #include "tgdh_api.h"
 
 #define FN_LENGTH 200
