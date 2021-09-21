@@ -13,7 +13,7 @@
  *  This software is licensed under a dual BSD and GPL v2 license.
  *  See LICENSE file at the root folder of the project.
  */
-#include "libarith.h"
+#include "../libarith.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

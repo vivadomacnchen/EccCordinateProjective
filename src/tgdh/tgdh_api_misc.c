@@ -49,6 +49,7 @@ cliques@ics.uci.edu. */
 
 #include <unistd.h>
 #include <malloc.h>
+//#include <math.h>
 
 #ifdef TIMING
 /* Needed by getrusgae */
@@ -70,6 +71,7 @@ int print=1;
 /* TGDH_API include files */
 #include "tgdh_api.h"
 #include "tgdh_api_misc.h"
+#include "common.h"
 
 /* dmalloc CNR.  */
 #ifdef USE_DMALLOC
@@ -86,28 +88,28 @@ int number_free[length_memcheck];
 #endif
 
 int tgdh_print_dsa(DSA *dsa) {
-  char *tmp;
-  
-  if (dsa == NULL) { 
-    fprintf(ERR_STRM,"Invalid DSA structure.\n"); 
-    return 0;
-  }
-
-  fprintf(ERR_STRM,"\n--- begin DSA structure ---\n");
-  fprintf(ERR_STRM,"Size: %d\n\n",dsa->p==NULL ? 0: BN_num_bits(dsa->p));
-  tmp=BN_bn2hex(dsa->p);
-  fprintf(ERR_STRM,"p = %s\n", tmp==NULL ? "n.d.": tmp);
-  free(tmp); tmp=BN_bn2hex(dsa->q);
-  fprintf(ERR_STRM,"q = %s\n", tmp==NULL ? "n.d.": tmp);
-  free(tmp); tmp=BN_bn2hex(dsa->g);
-  fprintf(ERR_STRM,"g = %s\n\n", tmp==NULL ? "n.d.": tmp);
-  free(tmp); tmp=BN_bn2hex(dsa->priv_key);
-  fprintf(ERR_STRM,"secr = %s\n", tmp==NULL ? "n.d.": tmp);
-  free(tmp); tmp=BN_bn2hex(dsa->pub_key);
-  fprintf(ERR_STRM,"pub  = %s\n", tmp==NULL ? "n.d.": tmp);
-  free (tmp);
-  fprintf(ERR_STRM,"\n--- end DSA structure ---\n");
-
+//  char *tmp;
+//
+//  if (dsa == NULL) {
+//    fprintf(ERR_STRM,"Invalid DSA structure.\n");
+//    return 0;
+//  }
+//
+//  fprintf(ERR_STRM,"\n--- begin DSA structure ---\n");
+//  fprintf(ERR_STRM,"Size: %d\n\n",dsa->p==NULL ? 0: BN_num_bits(dsa->p));
+//  tmp=BN_bn2hex(dsa->p);
+//  fprintf(ERR_STRM,"p = %s\n", tmp==NULL ? "n.d.": tmp);
+//  free(tmp); tmp=BN_bn2hex(dsa->q);
+//  fprintf(ERR_STRM,"q = %s\n", tmp==NULL ? "n.d.": tmp);
+//  free(tmp); tmp=BN_bn2hex(dsa->g);
+//  fprintf(ERR_STRM,"g = %s\n\n", tmp==NULL ? "n.d.": tmp);
+//  free(tmp); tmp=BN_bn2hex(dsa->priv_key);
+//  fprintf(ERR_STRM,"secr = %s\n", tmp==NULL ? "n.d.": tmp);
+//  free(tmp); tmp=BN_bn2hex(dsa->pub_key);
+//  fprintf(ERR_STRM,"pub  = %s\n", tmp==NULL ? "n.d.": tmp);
+//  free (tmp);
+//  fprintf(ERR_STRM,"\n--- end DSA structure ---\n");
+//
   return 1;
 }
 
@@ -328,7 +330,7 @@ int compare_key(TGDH_CONTEXT *ctx[], int num) {
     
   for(i=0; i<num; i++){
     if(ctx[i] != NULL){
-      if(BN_cmp(tmp_key, ctx[i]->root->tgdh_nv->key) != 0){
+      if(nn_cmp(tmp_key, ctx[i]->root->tgdh_nv->key) != 0){
         fprintf(stderr, "()()())(()()()()()()()()()\n");
         return -1;
       }

@@ -41,8 +41,8 @@ cliques@ics.uci.edu. */
  *********************************************************************/
 #include <memory.h>
 
-#include "openssl/evp.h"
-#include "openssl/x509.h"
+//#include "openssl/evp.h"
+//#include "openssl/x509.h"
 
 #include "tgdh_api.h"
 #include "error.h"
@@ -65,10 +65,10 @@ cliques@ics.uci.edu. */
 int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input) {
   int ret=OK;
   EVP_MD_CTX *md_ctx=NULL;
-  uint sig_len=0;
-  uint pkey_len=0;
+  unsigned int sig_len=0;
+  unsigned int pkey_len=0;
   clq_uchar *data=NULL;
-  uint pos=0;
+  unsigned int pos=0;
 #ifdef SIG_TIMING
   double Time=0.0;
 
@@ -208,7 +208,7 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 }
 
 int tgdh_remove_sign(CLQ_TOKEN *input, TGDH_SIGN **sign) {
-  uint pos=0;
+  unsigned int pos=0;
   int ret=OK;
   TGDH_SIGN *signature=*sign;
 

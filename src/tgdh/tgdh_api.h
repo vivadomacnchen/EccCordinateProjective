@@ -53,6 +53,7 @@ cliques@ics.uci.edu. */
 //#include "openssl/asn1.h"
 
 #include "common.h"
+#include "../curves/ec_params.h"
 
 #define TGDH_API_VERSION "1.0"
 
@@ -75,17 +76,17 @@ typedef struct tgdh_nv {
   TGDH_GM *member; /* Member information if this is a leaf node
                     * Null otherwise
                     */
-  uint index;    /* index of this node for encoding and decoding
+  unsigned int index;    /* index of this node for encoding and decoding
                   * left child has 2 * index as the index, and 
                   * right child has 2 * index + 1 has the index
                   */
-  BIGNUM *key;   /* key if it is on the key-path
+  nn *key;   /* key if it is on the key-path
                   * null otherwise
                   */
-  BIGNUM *bkey;  /* blinded key if it is on the co-path or key-path
+  nn *bkey;  /* blinded key if it is on the co-path or key-path
                   * null otherwise
                   */
-  uint joinQ;    /* True(1) if this node is joinable
+  unsigned int joinQ;    /* True(1) if this node is joinable
                   * False(0) otherwise
                   */
   int potential; /* Maximum height of a tree that can be joined to
@@ -118,7 +119,7 @@ typedef struct key_tree {
 typedef struct tgdh_context_st {
   CLQ_NAME *member_name;
   CLQ_NAME *group_name;
-  BIGNUM *group_secret; 
+  nn *group_secret; 
   clq_uchar *group_secret_hash; /* session_key */
   KEY_TREE *root;
   KEY_TREE *cache;
@@ -126,9 +127,9 @@ typedef struct tgdh_context_st {
   EVP_PKEY *pkey;
   int status;
   int merge_token;
-  BIGNUM *tmp_key;
-  BIGNUM *tmp_bkey;
-  uint epoch;
+  nn *tmp_key;
+  nn *tmp_bkey;
+  unsigned int epoch;
 } TGDH_CONTEXT;
 
 /* MESSAGE TYPE definitions */
@@ -163,7 +164,7 @@ typedef struct tree_list {
  *   session random for the member
  */
 int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
-                    CLQ_NAME *group_name); 
+                    CLQ_NAME *group_name,const ec_params *params); 
 
 /* tgdh_merge_req is called by every members in both groups and only
  * the sponsors will return a output token
@@ -179,7 +180,7 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
  */
 int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name, 
                     CLQ_NAME *group_name, CLQ_NAME *users_leaving[],
-                    CLQ_TOKEN **output);
+                    CLQ_TOKEN **output,const ec_params *params);
 
 /* tgdh_cascade is called by every member several times until every
  * member can compute the new group key when network faults occur.
@@ -193,7 +194,7 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
  */
 int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
                  CLQ_NAME *users_leaving[],
-                 TOKEN_LIST *list, CLQ_TOKEN **output);
+                 TOKEN_LIST *list, CLQ_TOKEN **output,const ec_params *params);
 
 /* tgdh_create_ctx creates the tree context.
  * Preconditions: *ctx has to be NULL.
@@ -201,7 +202,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
 int tgdh_create_ctx(TGDH_CONTEXT **ctx);
 
 /* tgdh_compute_bkey: Computes and returns bkey */
-BIGNUM *tgdh_compute_bkey (BIGNUM *key, DSA *params);
+nn *tgdh_compute_bkey (nn *key, DSA *params);
 
 /* tgdh_rand: Generates a new random number of "params->q" bits, using
  *   the default parameters.
@@ -209,12 +210,12 @@ BIGNUM *tgdh_compute_bkey (BIGNUM *key, DSA *params);
  *          resides. 
  *          NULL if an error occurs.
  */
-BIGNUM *tgdh_rand (DSA *params);
+nn *tgdh_rand (DSA *params);
 
 /* tgdh_compute_secret_hash: It computes the hash of the group_secret.
  * Preconditions: ctx->group_secret has to be valid.
  */
-int tgdh_compute_secret_hash (TGDH_CONTEXT *ctx);
+int tgdh_compute_secret_hash (TGDH_CONTEXT *ctx,ec_params *curve_params);
 
 /* tgdh_destroy_ctx frees the space occupied by the current context.
  * Including the group_members_list.
@@ -253,7 +254,7 @@ int tgdh_encode(TGDH_CONTEXT *ctx, CLQ_TOKEN **output,
                 TGDH_TOKEN_INFO *info);
 
 /* Converts tree structure to unsigned character string */
-void tgdh_map_encode(clq_uchar *stream, uint *pos, KEY_TREE *root);
+void tgdh_map_encode(clq_uchar *stream, unsigned int *pos, KEY_TREE *root);
 
 /* tgdh_decode using information from the input token, it creates
  * ctx. info is also created here. It contains data recovered from
@@ -267,7 +268,7 @@ int tgdh_decode(TGDH_CONTEXT **ctx, CLQ_TOKEN *input,
  *   tree
  * *tree should be pointer to the root node
  */
-int tgdh_map_decode(const CLQ_TOKEN *input, uint *pos, 
+int tgdh_map_decode(const CLQ_TOKEN *input, unsigned int *pos, 
                     TGDH_CONTEXT **ctx);
 
 /* tgdh_create_token_info: It creates the info token. */

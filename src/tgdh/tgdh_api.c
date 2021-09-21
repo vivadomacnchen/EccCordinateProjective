@@ -52,11 +52,11 @@ cliques@ics.uci.edu. */
 #include <netinet/in.h> /* Needed by htonl and ntohl */
 
 /* SSL include files */
-#include "openssl/bn.h"
-#include "openssl/bio.h"
-#include "openssl/md5.h"
-#include "openssl/err.h"
-#include "openssl/dsa.h"
+//#include "openssl/bn.h"
+//#include "openssl/bio.h"
+//#include "openssl/md5.h"
+//#include "openssl/err.h"
+//#include "openssl/dsa.h"
 
 /* TGDH_API include files */
 #include "tgdh_api.h"
@@ -67,19 +67,21 @@ cliques@ics.uci.edu. */
 #include "tgdh_test_misc.h" /* tgdh_get_time is defined here */
 
 #include "tgdh_api_misc.h" /* tgdh_get_time is defined here */
-
+#include "../nn/nn_rand.h"
 
 /* dmalloc CNR.  */
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
-
+#ifndef MD5_DIGEST_LENGTH
+#define MD5_DIGEST_LENGTH 32
+#endif
 /* tgdh_new_member is called by the new member in order to create its
  *   own context. Main functionality of this function is to generate
  *   session random for the member
  */
 int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
-                    CLQ_NAME *group_name)
+                    CLQ_NAME *group_name,const ec_params *params)
 {
   int ret=OK;
 
@@ -120,25 +122,26 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
   (*ctx)->root->tgdh_nv->joinQ=FALSE;
   
   /* I'm only member in my group... So key is same as my session random */
-  (*ctx)->root->tgdh_nv->key=tgdh_rand((*ctx)->params);
-  if (BN_is_zero((*ctx)->root->tgdh_nv->key) ||
-      (*ctx)->root->tgdh_nv->key==NULL){
+  nn_get_random_mod((*ctx)->root->tgdh_nv->key,&(params->ec_gen_order));//(*ctx)->root->tgdh_nv->key=tgdh_rand((*ctx)->params);
+  if (nn_iszero((*ctx)->root->tgdh_nv->key) ||
+      (*ctx)->root->tgdh_nv->key==NULL)
+  {
     ret=MALLOC_ERROR;
     goto error;
   }
   /* group_secret is same as key */
   if((*ctx)->group_secret == NULL){
     (*ctx)->group_secret=BN_dup((*ctx)->root->tgdh_nv->key);
-    if ((*ctx)->group_secret == (BIGNUM *) NULL) {
+    if ((*ctx)->group_secret == (nn *) NULL) {
       ret=MALLOC_ERROR;
       goto error;
     }
   }
   else{
-    BN_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->key);
+    nn_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->key);
   }
   
-  ret=tgdh_compute_secret_hash ((*ctx));
+  ret=tgdh_compute_secret_hash ((*ctx),params);
   if (ret!=OK) goto error;
   (*ctx)->root->tgdh_nv->member->cert=NULL;
   
@@ -173,7 +176,7 @@ error:
  */
 int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name, 
                     CLQ_NAME *group_name, CLQ_NAME *users_leaving[],
-                    CLQ_TOKEN **output)
+                    CLQ_TOKEN **output,const ec_params *params)
 {
   int ret=OK;
   TGDH_TOKEN_INFO *info=NULL;
@@ -224,11 +227,11 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
   tmp_tree = the_sponsor;
   while(tmp_tree != NULL){
     if(tmp_tree->tgdh_nv->bkey != NULL){
-      BN_clear_free(tmp_tree->tgdh_nv->bkey);
+      nn_uninit(tmp_tree->tgdh_nv->bkey);
       tmp_tree->tgdh_nv->bkey = NULL;
     }
     if(tmp_tree->tgdh_nv->key != NULL){
-      BN_clear_free(tmp_tree->tgdh_nv->key);
+      nn_uninit(tmp_tree->tgdh_nv->key);
       tmp_tree->tgdh_nv->key = NULL;
     }
     tmp_tree = tmp_tree->parent;
@@ -244,7 +247,7 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
   /* Now, I am the sponsor */
 
   /* Generate new key and bkeys for the sponsor */
-  the_sponsor->tgdh_nv->key=tgdh_rand(ctx->params);
+  nn_get_random_mod(the_sponsor->tgdh_nv->key,&(params->ec_gen_order));//the_sponsor->tgdh_nv->key=tgdh_rand(ctx->params);
   the_sponsor->tgdh_nv->bkey=
     tgdh_compute_bkey(the_sponsor->tgdh_nv->key, ctx->params);
   sponsor = 1;
@@ -300,7 +303,7 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
     
     /* Compute bkeys */
     if(tmp_tree->parent->tgdh_nv->bkey != NULL){
-      BN_clear_free(tmp_tree->parent->tgdh_nv->bkey);
+      nn_uninit(tmp_tree->parent->tgdh_nv->bkey);
       tmp_tree->parent->tgdh_nv->bkey=NULL;
     }
     tmp_tree->parent->tgdh_nv->bkey
@@ -363,7 +366,7 @@ error:
  */
 int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
                  CLQ_NAME *users_leaving[], 
-                 TOKEN_LIST *list, CLQ_TOKEN **output){
+                 TOKEN_LIST *list, CLQ_TOKEN **output,const ec_params *params){
   TGDH_TOKEN_INFO *info=NULL;
   int i=0;
   TGDH_SIGN *sign=NULL;
@@ -423,7 +426,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
         new_information = 1;
         new_key_comp = 1;
         if(sponsor_list[i]->tgdh_nv->key == NULL){
-          sponsor_list[i]->tgdh_nv->key=tgdh_rand((*ctx)->params);
+          nn_get_random_mod(sponsor_list[i]->tgdh_nv->key,&(params->ec_gen_order));//sponsor_list[i]->tgdh_nv->key=tgdh_rand((*ctx)->params);
           sponsor_list[i]->tgdh_nv->bkey
             =tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->key,
                                (*ctx)->params);
@@ -664,7 +667,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
         
         /* Compute bkeys */
         if(tmp1_node->parent->tgdh_nv->bkey != NULL){
-          BN_clear_free(tmp1_node->parent->tgdh_nv->bkey);
+          nn_uninit(tmp1_node->parent->tgdh_nv->bkey);
           tmp1_node->parent->tgdh_nv->bkey=NULL;
         }
         tmp1_node->parent->tgdh_nv->bkey
@@ -726,8 +729,8 @@ error:
     if((*ctx)->root->tgdh_nv->key == NULL){
       fprintf(stderr, "Key is NULL, but return is OK\n\n");
     }
-    BN_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->key);
-    result=tgdh_compute_secret_hash ((*ctx));
+    nn_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->key);
+    result=tgdh_compute_secret_hash ((*ctx),params);
     (*ctx)->epoch++; /* Used inside tgdh_encode */
   }
         
@@ -776,29 +779,52 @@ error:
 }
 
 /* tgdh_compute_bkey: Computes and returns bkey */
-BIGNUM *tgdh_compute_bkey (BIGNUM *key, DSA *params)
+//ec_pub_key *tgdh_compute_bkey(ec_priv_key *priv_key,const ec_params *params) //(nn *key, DSA *params)
+//{
+//  int ret=OK;
+//  ec_pub_key *
+//  init_pubkey_from_privkey(&(kp->pub_key), &(kp->priv_key));
+//
+////  BIGNUM *new_bkey = BN_new();
+////  BN_CTX *bn_ctx=BN_CTX_new();
+////
+////  if (bn_ctx == (BN_CTX *) NULL) {ret=MALLOC_ERROR; goto error;}
+////  if (new_bkey == NULL) {ret=MALLOC_ERROR; goto error;}
+////  if (key == NULL) {ret=STRUCTURE_ERROR; goto error;}
+////
+////  ret = BN_mod(key,key,params->q,bn_ctx);
+////  if(ret != OK) goto error;
+////  ret=BN_mod_exp(new_bkey,params->g,key,params->p,bn_ctx);
+////
+////error:
+////  if (bn_ctx != NULL) BN_CTX_free (bn_ctx);
+////  if (ret!=OK)
+////    if (new_bkey != NULL) {
+////      nn_uninit(new_bkey);
+////      new_bkey=NULL;
+////    }
+//
+//  return new_bkey;
+//}
+int tgdh_compute_bkey(ec_key_pair *kp, const ec_params *params,
+		    ec_sig_alg_type ec_key_alg)
 {
-  int ret=OK;
-  BIGNUM *new_bkey = BN_new();
-  BN_CTX *bn_ctx=BN_CTX_new();  
-  
-  if (bn_ctx == (BN_CTX *) NULL) {ret=MALLOC_ERROR; goto error;}
-  if (new_bkey == NULL) {ret=MALLOC_ERROR; goto error;}
-  if (key == NULL) {ret=STRUCTURE_ERROR; goto error;}
-  
-  ret = BN_mod(key,key,params->q,bn_ctx);
-  if(ret != OK) goto error;
-  ret=BN_mod_exp(new_bkey,params->g,key,params->p,bn_ctx); 
-  
-error:
-  if (bn_ctx != NULL) BN_CTX_free (bn_ctx);
-  if (ret!=OK) 
-    if (new_bkey != NULL) {
-      BN_clear_free(new_bkey);
-      new_bkey=NULL;
-    }
-  
-  return new_bkey;
+	int ret = -1;
+
+	MUST_HAVE(kp != NULL);
+	MUST_HAVE(params != NULL);
+
+
+	/* Set key type and pointer to EC params for private key */
+	kp->priv_key.key_type = ec_key_alg;
+	kp->priv_key.params = (const ec_params *)params;
+	kp->priv_key.magic = PRIV_KEY_MAGIC;
+
+	/* Generate associated public key. */
+	ret = init_pubkey_from_privkey(&(kp->pub_key), &(kp->priv_key));
+
+ err:
+	return ret;
 }
 
 /* tgdh_rand: Generates a new random number of "params->q" bits, using
@@ -807,44 +833,45 @@ error:
  *          resides. 
  *          NULL if an error occurs.
  */
-BIGNUM *tgdh_rand (DSA *params) 
-{
-  /* DSA *Random=NULL; */
-  int ret=OK;
-  BIGNUM *random=NULL;
-  int i=0;
-  
-  random=BN_new();
-  if (random == NULL) { ret=MALLOC_ERROR; goto error;}
-  
-  /* The following idea was obtained from dsa_key.c (openssl) */
-  i=BN_num_bits(params->q);
-  for (;;) {
-    ret = BN_rand(random,i,1,0);
-    if (BN_cmp(random,params->q) >= 0)
-      BN_sub(random,random,params->q);
-    if (!BN_is_zero(random)) break;
-  }
-  
-error:
-  
-  if (ret!=OK) 
-    if (random != NULL) {
-      BN_clear_free(random);
-      random=NULL;
-    }
-
-  return random;
-}
+//nn *tgdh_rand (ec_str_params params)//(DSA *params)
+//{
+//  /* DSA *Random=NULL; */
+//  int ret=OK;
+//  nn_t random=NULL;//nn *random=NULL;
+//  int i=0;
+//
+//  nn_init(random,0);//random=BN_new();
+//  if (random == NULL) { ret=MALLOC_ERROR; goto error;}
+//
+//  /* The following idea was obtained from dsa_key.c (openssl) */
+//  i=params.;//i=BN_num_bits(params->q);
+//
+//  for (;;) {
+//    ret = BN_rand(random,i,1,0);
+//    if (BN_cmp(random,params->q) >= 0)
+//      BN_sub(random,random,params->q);
+//    if (!nn_iszero(random)) break;
+//  }
+//
+//error:
+//
+//  if (ret!=OK)
+//    if (random != NULL) {
+//      nn_uninit(random);
+//      random=NULL;
+//    }
+//
+//  return random;
+//}
 
 /* tgdh_compute_secret_hash: It computes the hash of the group_secret.
  * Preconditions: ctx->group_secret has to be valid.
  */
-int tgdh_compute_secret_hash (TGDH_CONTEXT *ctx) 
+int tgdh_compute_secret_hash (TGDH_CONTEXT *ctx,ec_params *curve_params) 
 {
   char *tmp_str=NULL;
-  
-  tmp_str=BN_bn2hex(ctx->group_secret);
+  u8 buf[BIT_LEN_WORDS(NN_MAX_BIT_LEN) * (WORDSIZE / 8)] = { 0 };
+  nn_export_to_buf(tmp_str, 2 * BYTECEIL(curve_params->ec_fp.p_bitlen), ctx->group_secret);//tmp_str=BN_bn2hex(ctx->group_secret);
   if (tmp_str==NULL) return CTX_ERROR;
   
   MD5((clq_uchar *)tmp_str, (unsigned long)strlen(tmp_str), 
@@ -876,15 +903,15 @@ void tgdh_destroy_ctx (TGDH_CONTEXT **ctx, int flag)
     (*ctx)->group_name=NULL;
   }
   if (((*ctx)->group_secret) != NULL) {
-    BN_clear_free((*ctx)->group_secret);
+    nn_uninit((*ctx)->group_secret);
     (*ctx)->group_secret=NULL;
   }
   if (((*ctx)->tmp_key) != NULL) {
-    BN_clear_free((*ctx)->tmp_key);
+    nn_uninit((*ctx)->tmp_key);
     (*ctx)->tmp_key=NULL;
   }
   if (((*ctx)->tmp_bkey) != NULL) {
-    BN_clear_free((*ctx)->tmp_bkey);
+    nn_uninit((*ctx)->tmp_bkey);
     (*ctx)->tmp_bkey=NULL;
   }
   if (((*ctx)->group_secret_hash) != NULL) {
@@ -932,7 +959,7 @@ void tgdh_destroy_ctx (TGDH_CONTEXT **ctx, int flag)
 int tgdh_encode(TGDH_CONTEXT *ctx, CLQ_TOKEN **output,
 		TGDH_TOKEN_INFO *info) 
 { 
-  uint pos=0;
+  unsigned int pos=0;
   clq_uchar *data;
   
   /* Freeing the output token if necessary */
@@ -968,7 +995,7 @@ int tgdh_encode(TGDH_CONTEXT *ctx, CLQ_TOKEN **output,
 }
 
 /* Converts tree structure to unsigned character string */
-void tgdh_map_encode(clq_uchar *stream, uint *pos, KEY_TREE *root)
+void tgdh_map_encode(clq_uchar *stream, unsigned int *pos, KEY_TREE *root)
 {
   KEY_TREE *head, *tail;
   int map = 0;        /* If map is 3, index, bkey, member_name
@@ -979,7 +1006,7 @@ void tgdh_map_encode(clq_uchar *stream, uint *pos, KEY_TREE *root)
 
   tgdh_init_bfs(root);
   
-  int_encode(stream, pos, (uint)root->tgdh_nv->height);
+  int_encode(stream, pos, (unsigned int)root->tgdh_nv->height);
   int_encode(stream, pos, root->tgdh_nv->num_node);
   head = tail = root;
   
@@ -1000,7 +1027,7 @@ void tgdh_map_encode(clq_uchar *stream, uint *pos, KEY_TREE *root)
     /* Real encoding */
     int_encode(stream, pos, map);
     int_encode(stream, pos, head->tgdh_nv->index);
-    int_encode(stream, pos, (uint)head->tgdh_nv->potential);
+    int_encode(stream, pos, (unsigned int)head->tgdh_nv->potential);
     int_encode(stream, pos, head->tgdh_nv->joinQ);
     if(head->tgdh_nv->bkey != NULL) 
       bn_encode(stream, pos, head->tgdh_nv->bkey);
@@ -1034,7 +1061,7 @@ void tgdh_map_encode(clq_uchar *stream, uint *pos, KEY_TREE *root)
 int tgdh_decode(TGDH_CONTEXT **ctx, CLQ_TOKEN *input,
                 TGDH_TOKEN_INFO **info)
 {
-  uint pos=0;
+  unsigned int pos=0;
   int ret=CTX_ERROR;
   
   if (input == NULL){
@@ -1062,9 +1089,9 @@ int tgdh_decode(TGDH_CONTEXT **ctx, CLQ_TOKEN *input,
   ret=INVALID_INPUT_TOKEN;
   if (!string_decode(input,&pos,(*info)->group_name)) 
     goto error;
-  if (!int_decode(input,&pos,(uint*)&(*info)->message_type)) 
+  if (!int_decode(input,&pos,(unsigned int*)&(*info)->message_type)) 
     goto error;
-  if (!int_decode(input,&pos,(uint *)&(*info)->time_stamp)) 
+  if (!int_decode(input,&pos,(unsigned int *)&(*info)->time_stamp)) 
     goto error;
   if (!string_decode(input,&pos,(*info)->sender_name)) 
     goto error;
@@ -1107,21 +1134,21 @@ error:
  *   tree
  * *tree should be pointer to the root node
  */
-int tgdh_map_decode(const CLQ_TOKEN *input, uint *pos, 
+int tgdh_map_decode(const CLQ_TOKEN *input, unsigned int *pos, 
                     TGDH_CONTEXT **ctx)
 {
   int i;
-  uint map=0;
-  uint tmp_index;
+  unsigned int map=0;
+  unsigned int tmp_index;
   KEY_TREE *tmp_tree=NULL, *tmp1_tree=NULL;
   int ret=OK;
   
   (*ctx)->root->tgdh_nv = (TGDH_NV *)calloc(sizeof(TGDH_NV),1);
   if ((*ctx)->root->tgdh_nv == NULL) 
   {ret=MALLOC_ERROR; goto error;}
-  if(!int_decode(input, pos, (uint *)&((*ctx)->root->tgdh_nv->height))) 
+  if(!int_decode(input, pos, (unsigned int *)&((*ctx)->root->tgdh_nv->height))) 
     return 0;
-  if(!int_decode(input, pos, (uint *)&((*ctx)->root->tgdh_nv->num_node))) 
+  if(!int_decode(input, pos, (unsigned int *)&((*ctx)->root->tgdh_nv->num_node))) 
     return 0;
   
   (*ctx)->root->parent = NULL;
@@ -1131,7 +1158,7 @@ int tgdh_map_decode(const CLQ_TOKEN *input, uint *pos,
   if(!int_decode(input, pos, &tmp_index)) return 0;
   
   (*ctx)->root->tgdh_nv->index = tmp_index;
-  if(!int_decode(input, pos, (uint *)&((*ctx)->root->tgdh_nv->potential))) 
+  if(!int_decode(input, pos, (unsigned int *)&((*ctx)->root->tgdh_nv->potential))) 
     return 0;
   if(!int_decode(input, pos, &((*ctx)->root->tgdh_nv->joinQ))) 
     return 0;
@@ -1176,7 +1203,7 @@ int tgdh_map_decode(const CLQ_TOKEN *input, uint *pos,
     tmp1_tree->tgdh_nv->height = tmp1_tree->tgdh_nv->num_node=-1;
     tmp1_tree->left=tmp1_tree->right=NULL;
     tmp1_tree->prev=tmp1_tree->next=tmp1_tree->bfs=NULL;
-    if(!int_decode(input, pos, (uint *)&(tmp1_tree->tgdh_nv->potential))) 
+    if(!int_decode(input, pos, (unsigned int *)&(tmp1_tree->tgdh_nv->potential))) 
       return 0;
     if(!int_decode(input, pos, &(tmp1_tree->tgdh_nv->joinQ))) 
       return 0;
@@ -1653,11 +1680,11 @@ void tgdh_free_nv(TGDH_NV **nv) {
   }
   
   if ((*nv)->key != NULL){
-    BN_clear_free((*nv)->key);
+    nn_uninit((*nv)->key);
   }
   
   if ((*nv)->bkey != NULL){
-    BN_clear_free((*nv)->bkey);
+    nn_uninit((*nv)->bkey);
   }
   
   free((*nv));
@@ -1937,11 +1964,11 @@ int remove_member(TGDH_CONTEXT *ctx, CLQ_NAME *users_leaving[],
     }
     while(tmp1_node != NULL){
       if(tmp1_node->tgdh_nv->bkey != NULL){
-        BN_clear_free(tmp1_node->tgdh_nv->bkey);
+        nn_uninit(tmp1_node->tgdh_nv->bkey);
         tmp1_node->tgdh_nv->bkey = NULL;
       }
       if(tmp1_node->tgdh_nv->key != NULL){
-        BN_clear_free(tmp1_node->tgdh_nv->key);
+        nn_uninit(tmp1_node->tgdh_nv->key);
         tmp1_node->tgdh_nv->key = NULL;
       }
       tmp1_node = tmp1_node->parent;
@@ -2060,21 +2087,21 @@ int remove_member(TGDH_CONTEXT *ctx, CLQ_NAME *users_leaving[],
     
     tmp1_node = the_sponsor;
     if(tmp1_node->tgdh_nv->bkey != NULL){
-      BN_clear_free(tmp1_node->tgdh_nv->bkey);
+      nn_uninit(tmp1_node->tgdh_nv->bkey);
       tmp1_node->tgdh_nv->bkey = NULL;
     }
     if(tmp1_node->tgdh_nv->key != NULL){
-      BN_clear_free(tmp1_node->tgdh_nv->key);
+      nn_uninit(tmp1_node->tgdh_nv->key);
       tmp1_node->tgdh_nv->key = NULL;
     }
     tmp1_node = tmp1_node->parent;
     while(tmp1_node != NULL){
       if(tmp1_node->tgdh_nv->bkey != NULL){
-        BN_clear_free(tmp1_node->tgdh_nv->bkey);
+        nn_uninit(tmp1_node->tgdh_nv->bkey);
         tmp1_node->tgdh_nv->bkey = NULL;
       }
       if(tmp1_node->tgdh_nv->key != NULL){
-        BN_clear_free(tmp1_node->tgdh_nv->key);
+        nn_uninit(tmp1_node->tgdh_nv->key);
         tmp1_node->tgdh_nv->key = NULL;
       }
       tmp1_node = tmp1_node->parent;
@@ -2270,11 +2297,11 @@ KEY_TREE *tgdh_merge(KEY_TREE *big_tree, KEY_TREE *small_tree)
   tmp1_node = joiner->parent;
   while(tmp1_node != NULL){
     if(tmp1_node->tgdh_nv->key != NULL){
-      BN_clear_free(tmp1_node->tgdh_nv->key);
+      nn_uninit(tmp1_node->tgdh_nv->key);
       tmp1_node->tgdh_nv->key = NULL;
     }
     if(tmp1_node->tgdh_nv->bkey != NULL){
-      BN_clear_free(tmp1_node->tgdh_nv->bkey);
+      nn_uninit(tmp1_node->tgdh_nv->bkey);
       tmp1_node->tgdh_nv->bkey = NULL;
     }
     tmp1_node = tmp1_node->parent;

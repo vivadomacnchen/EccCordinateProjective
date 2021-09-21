@@ -113,18 +113,13 @@ $(LIBARITH_DYN): $(LIBARITH_OBJECTS)
 endif
 
 # curve module
-src/tgdh/%.d: src/nn/%.c $(NN_CONFIG) $(CFG_DEPS)
-	$(if $(filter $(wildcard src/nn/*.c), $<), @$(CC) $(LIB_CFLAGS) -MM $< -MF $@)
-
-src/tgsh/%.o: src/nn/%.c $(NN_CONFIG) $(CFG_DEPS)
-	$(if $(filter $(wildcard src/nn/*.c), $<), $(CC) $(LIB_CFLAGS) -c $< -o $@)
 CURVES_SRC = $(wildcard src/curves/*.c)
 CURVES_OBJECTS = $(patsubst %.c, %.o, $(CURVES_SRC))
 CURVES_DEPS = $(patsubst %.c, %.d, $(CURVES_SRC))
 #tgdh module
-TGDH_SRC= $(wildcard src/tgdh/*.c)
-TGDH_OBJECTS = $(patsubst %.c, %.o, $(TGDH_SRC))
-TGDH_DEPS = $(patsubst %.c, %.d, $(TGDH_SRC))
+#TGDH_SRC= $(wildcard src/tgdh/*.c)
+#TGDH_OBJECTS = $(patsubst %.c, %.o, $(TGDH_SRC))
+#TGDH_DEPS = $(patsubst %.c, %.d, $(TGDH_SRC))
 #
 src/curves/%.d: src/curves/%.c $(NN_CONFIG) $(CFG_DEPS)
 	$(if $(filter $(wildcard src/curves/*.c), $<), @$(CC) $(LIB_CFLAGS) -MM $< -MF $@)
@@ -175,7 +170,7 @@ src/tgdh/%d: src/tgdh/%.c $(NN_CONFIG) $(CFG_DEPS)
 src/tgdh/%.o: src/tgdh/%.c $(NN_CONFIG) $(CFG_DEPS)
 	$(if $(filter $(wildcard src/tgdh/*.c), $<), $(CC) $(LIB_CFLAGS) -c $< -o $@)
 
-TGDH_SRC = src/tgdh/tgdh_api_misc.c src/tgdh/src/tgdh/tgdh_api.c src/tgdh/src/tgdh/tgdh_api.c src/tgdh/src/tgdh/tgdh_api_misc.c src/tgdh/src/tgdh/tgdh_sig.c src/tgdh/src/tgdh/sig_algs.c 
+TGDH_SRC = src/tgdh/tgdh_api_misc.c src/tgdh/tgdh_api.c src/tgdh/tgdh_api_misc.c src/tgdh/tgdh_sig.c 
 TGDH_OBJECTS = $(patsubst %.c, %.o, $(TGDH_SRC))
 TGDH_DEPS = $(patsubst %.c, %.d, $(TGDH_SRC))
 
@@ -230,13 +225,13 @@ src/tests/%.d:  src/tests/%.c $(CFG_DEPS)
 	$(if $(filter-out src/tests/ec_utils.c, $<), $(CC) $(LIB_CFLAGS) -MM $< -MF $@)
 #ccw- s
 $(BUILD_DIR)/ec_self_tests: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN)
-#	$(CC) $(BIN_CFLAGS) $(BIN_LDFLAGS) $^ -o $@
+	$(CC) $(BIN_CFLAGS) $(BIN_LDFLAGS) $^ -o $@
 #ccw- e
 #ccw+ s
 #$(BUILD_DIR)/ec_self_tests: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN)
 #	$(CC) $(BIN_CFLAGS) -fPIC $^ -o $@
 #$(BUILD_DIR)/ec_self_tests: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN)
-	$(CC) $(BIN_CFLAGS) -static $(BIN_LDFLAGS) $^ -o $@
+#	$(CC) $(BIN_CFLAGS) -static $(BIN_LDFLAGS) $^ -o $@
 #ccw+ e
 #	@echo "\n"
 #	@echo $(TESTS_OBJECTS_CORE)
@@ -249,14 +244,14 @@ $(BUILD_DIR)/ec_self_tests: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EX
 
 #ccw- s
 $(BUILD_DIR)/ec_utils: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN) $(TGDH_SRC)
-	$(CC) $(BIN_CFLAGS) $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
+	$(CC) $(BIN_CFLAGS) $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@ -lm
 #ccw- e
 #ccw+ s
 #$(BUILD_DIR)/ec_utils: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN)
 #	$(CC) $(BIN_CFLAGS) -static -static-libgcc $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
 #ccw+ e
 #mytest:	$(CFG_DEPS) $(DEPENDS) $(EXT_DEPS_OBJECTS) $(LIBS)
-$(BUILD_DIR)/mytest: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN) $(TGDH_OBJECTS)
+$(BUILD_DIR)/mytest: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS_OBJECTS) $(LIBSIGN_OBJECTS) $(TGDH_OBJECTS)
 	@echo mytestmake
 	@echo $(LIBS)
 	@echo $(CFG_DEPS)
@@ -272,7 +267,7 @@ $(BUILD_DIR)/mytest: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_UTILS_SRC) $(EXT_DEPS
 	@echo $(MINGW)
 	@echo APPLE
 	@echo $(APPLE)
-	$(CC) $(BIN_CFLAGS) -static $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@
+	$(CC) $(BIN_CFLAGS) -static $(BIN_LDFLAGS) -L$(BUILD_DIR) -DWITH_STDLIB  $^ -o $@ -lm
 # If the user asked for dynamic libraries, compile versions of our binaries against them
 ifeq ($(WITH_DYNAMIC_LIBS),1)
 $(BUILD_DIR)/ec_self_tests_dyn: $(TESTS_OBJECTS_CORE) $(TESTS_OBJECTS_SELF_SRC) $(EXT_DEPS_OBJECTS)

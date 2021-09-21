@@ -106,7 +106,7 @@ typedef struct {
 #define MAX_HASH_ALG_NAME_LEN	0
 static const hash_mapping hash_maps[] = {
 #ifdef WITH_HASH_SHA224
-	{.type = SHA224,	/* SHA224 */
+	{.type = SHA224ID,	/* SHA224 */
 	 .name = "SHA224",
 	 .digest_size = SHA224_DIGEST_SIZE,
 	 .block_size = SHA224_BLOCK_SIZE,
@@ -120,7 +120,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA224 */
 #ifdef WITH_HASH_SHA256
-	{.type = SHA256,	/* SHA256 */
+	{.type = SHA256ID,	/* SHA256 */
 	 .name = "SHA256",
 	 .digest_size = SHA256_DIGEST_SIZE,
 	 .block_size = SHA256_BLOCK_SIZE,
@@ -134,7 +134,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA256 */
 #ifdef WITH_HASH_SHA384
-	{.type = SHA384,	/* SHA384 */
+	{.type = SHA384ID,	/* SHA384 */
 	 .name = "SHA384",
 	 .digest_size = SHA384_DIGEST_SIZE,
 	 .block_size = SHA384_BLOCK_SIZE,
@@ -148,7 +148,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA384 */
 #ifdef WITH_HASH_SHA512
-	{.type = SHA512,	/* SHA512 */
+	{.type = SHA512ID,	/* SHA512 */
 	 .name = "SHA512",
 	 .digest_size = SHA512_DIGEST_SIZE,
 	 .block_size = SHA512_BLOCK_SIZE,
@@ -162,7 +162,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA512 */
 #ifdef WITH_HASH_SHA512_224
-	{.type = SHA512_224,	/* SHA512_224 */
+	{.type = SHA512_224ID,	/* SHA512_224 */
 	 .name = "SHA512_224",
 	 .digest_size = SHA512_224_DIGEST_SIZE,
 	 .block_size = SHA512_224_BLOCK_SIZE,
@@ -176,7 +176,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA512_224 */
 #ifdef WITH_HASH_SHA512_256
-	{.type = SHA512_256,	/* SHA512_256 */
+	{.type = SHA512_256ID,	/* SHA512_256 */
 	 .name = "SHA512_256",
 	 .digest_size = SHA512_256_DIGEST_SIZE,
 	 .block_size = SHA512_256_BLOCK_SIZE,
@@ -190,7 +190,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA512_256 */
 #ifdef WITH_HASH_SHA3_224
-	{.type = SHA3_224,	/* SHA3_224 */
+	{.type = SHA3_224ID,	/* SHA3_224 */
 	 .name = "SHA3_224",
 	 .digest_size = SHA3_224_DIGEST_SIZE,
 	 .block_size = SHA3_224_BLOCK_SIZE,
@@ -204,7 +204,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA3_224 */
 #ifdef WITH_HASH_SHA3_256
-	{.type = SHA3_256,	/* SHA3_256 */
+	{.type = SHA3_256ID,	/* SHA3_256 */
 	 .name = "SHA3_256",
 	 .digest_size = SHA3_256_DIGEST_SIZE,
 	 .block_size = SHA3_256_BLOCK_SIZE,
@@ -218,7 +218,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA3_256 */
 #ifdef WITH_HASH_SHA3_384
-	{.type = SHA3_384,	/* SHA3_384 */
+	{.type = SHA3_384ID,	/* SHA3_384 */
 	 .name = "SHA3_384",
 	 .digest_size = SHA3_384_DIGEST_SIZE,
 	 .block_size = SHA3_384_BLOCK_SIZE,
@@ -232,7 +232,7 @@ static const hash_mapping hash_maps[] = {
 #endif /* MAX_HASH_ALG_NAME_LEN */
 #endif /* WITH_HASH_SHA3_384 */
 #ifdef WITH_HASH_SHA3_512
-	{.type = SHA3_512,	/* SHA3_512 */
+	{.type = SHA3_512ID,	/* SHA3_512 */
 	 .name = "SHA3_512",
 	 .digest_size = SHA3_512_DIGEST_SIZE,
 	 .block_size = SHA3_512_BLOCK_SIZE,

@@ -48,34 +48,34 @@ typedef enum {
 typedef enum {
 	UNKNOWN_HASH_ALG = 0,
 #ifdef WITH_HASH_SHA224
-	SHA224 = 1,
+	SHA224ID = 1,
 #endif
 #ifdef WITH_HASH_SHA256
-	SHA256 = 2,
+	SHA256ID = 2,
 #endif
 #ifdef WITH_HASH_SHA384
-	SHA384 = 3,
+	SHA384ID = 3,
 #endif
 #ifdef WITH_HASH_SHA512
-	SHA512 = 4,
+	SHA512ID = 4,
 #endif
 #ifdef WITH_HASH_SHA512_224
-	SHA512_224 = 5,
+	SHA512_224ID = 5,
 #endif
 #ifdef WITH_HASH_SHA512_256
-	SHA512_256 = 6,
+	SHA512_256ID = 6,
 #endif
 #ifdef WITH_HASH_SHA3_224
-	SHA3_224 = 7,
+	SHA3_224ID = 7,
 #endif
 #ifdef WITH_HASH_SHA3_256
-	SHA3_256 = 8,
+	SHA3_256ID = 8,
 #endif
 #ifdef WITH_HASH_SHA3_384
-	SHA3_384 = 9,
+	SHA3_384ID = 9,
 #endif
 #ifdef WITH_HASH_SHA3_512
-	SHA3_512 = 10,
+	SHA3_512ID = 10,
 #endif
 } hash_alg_type;
 
