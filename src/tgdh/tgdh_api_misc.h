@@ -51,7 +51,7 @@ cliques@ics.uci.edu. */
 #define FN_LENGTH 200
 #define Q_SIZE_IN_BITS 160
 
-int tgdh_print_dsa(DSA *dsa);
+int tgdh_print_dsa(TGDH_CONTEXT *ctx);
 
 KEY_TREE *tgdh_search_number(KEY_TREE *tree, int index);
 

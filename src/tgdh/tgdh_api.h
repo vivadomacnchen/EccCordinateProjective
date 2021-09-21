@@ -123,7 +123,7 @@ typedef struct tgdh_context_st {
   clq_uchar *group_secret_hash; /* session_key */
   KEY_TREE *root;
   KEY_TREE *cache;
-  DSA *params;
+  ec_params *params;
   EVP_PKEY *pkey;
   int status;
   int merge_token;
@@ -202,7 +202,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
 int tgdh_create_ctx(TGDH_CONTEXT **ctx);
 
 /* tgdh_compute_bkey: Computes and returns bkey */
-nn *tgdh_compute_bkey (nn *key, DSA *params);
+nn *tgdh_compute_bkey (ec_key_pair *kp, const ec_params *params, ec_sig_alg_type ec_key_alg);//(nn *key, DSA *params);
 
 /* tgdh_rand: Generates a new random number of "params->q" bits, using
  *   the default parameters.

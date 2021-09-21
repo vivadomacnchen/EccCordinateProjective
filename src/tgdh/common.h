@@ -71,7 +71,26 @@ typedef unsigned int clq_uint;
 #define LENGTH_SIZE 4 /* The length of the size in a token */
 #define TOTAL_INT INT_SIZE+LENGTH_SIZE
 #define MAX_LIST 200 /* Maximum number of members */ 
-# define STACK_OF(type) struct stack_st_##type
+typedef struct stack_st {
+    int num;
+    char **data;
+    int sorted;
+    int num_alloc;
+    int (*comp) (const void *, const void *);
+} _STACK;
+#define STACK_OF(type) struct stack_st_##type
+# define PREDECLARE_STACK_OF(type) STACK_OF(type);
+
+# define DECLARE_STACK_OF(type) \
+STACK_OF(type) \
+    { \
+    _STACK stack; \
+    };
+# define DECLARE_SPECIAL_STACK_OF(type, type2) \
+STACK_OF(type) \
+    { \
+    _STACK stack; \
+    };
 
 #ifndef FALSE
 #define FALSE 0
@@ -133,126 +152,28 @@ typedef struct clq_token_st {
 } CLQ_TOKEN;
 //ccw+s
 #define BN_ULONG        unsigned int
-# define SHA_DIGEST_LENGTH 20
+#define SHA_DIGEST_LENGTH 20
 typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
-//struct asn1_object_st {
-//    const char *sn, *ln;
-//    int nid;
-//    int length;
-//    const unsigned char *data;  /* data remains const after init */
-//    int flags;                  /* Should we free this one */
-//};
-//typedef struct asn1_object_st ASN1_OBJECT;
-//typedef struct ASN1_VALUE_st ASN1_VALUE;
-//typedef struct asn1_type_st {
-//    int type;
-//    union {
-//        char *ptr;
-//        ASN1_BOOLEAN boolean;
-//        ASN1_STRING *asn1_string;
-//        ASN1_OBJECT *object;
-//        ASN1_INTEGER *integer;
-//        ASN1_ENUMERATED *enumerated;
-//        ASN1_BIT_STRING *bit_string;
-//        ASN1_OCTET_STRING *octet_string;
-//        ASN1_PRINTABLESTRING *printablestring;
-//        ASN1_T61STRING *t61string;
-//        ASN1_IA5STRING *ia5string;
-//        ASN1_GENERALSTRING *generalstring;
-//        ASN1_BMPSTRING *bmpstring;
-//        ASN1_UNIVERSALSTRING *universalstring;
-//        ASN1_UTCTIME *utctime;
-//        ASN1_GENERALIZEDTIME *generalizedtime;
-//        ASN1_VISIBLESTRING *visiblestring;
-//        ASN1_UTF8STRING *utf8string;
-//        /*
-//         * set and sequence are left complete and still contain the set or
-//         * sequence bytes
-//         */
-//        ASN1_STRING *set;
-//        ASN1_STRING *sequence;
-//        ASN1_VALUE *asn1_value;
-//    } value;
-//} ASN1_TYPE;
-//typedef struct x509_attributes_st {
-//    ASN1_OBJECT *object;
-//    int single;                 /* 0 for a set, 1 for a single item (which is
-//                                 * wrong) */
-//    union {
-//        char *ptr;
-//        /*
-//         * 0
-//         */ STACK_OF(ASN1_TYPE) *set;
-//        /*
-//         * 1
-//         */ ASN1_TYPE *single;
-//    } value;
-//} X509_ATTRIBUTE;
 
-//struct bignum_st {
-//    BN_ULONG *d;                /* Pointer to an array of 'BN_BITS2' bit
-//                                 * chunks. */
-//    int top;                    /* Index of last used d +1. */
-//    /* The next are internal book keeping for bn_expand. */
-//    int dmax;                   /* Size of the d array. */
-//    int neg;                    /* one if the number is negative */
-//    int flags;
-//};
-//struct bn_mont_ctx_st {
-//    int ri;                     /* number of bits in R */
-//    nn RR;                  /* used to convert to montgomery form */
-//    nn N;                   /* The modulus */
-//    nn Ni;                  /* R*(1/R mod N) - N*Ni = 1 (Ni is only
-//                                 * stored for bignum algorithm) */
-//    BN_ULONG n0[2];             /* least significant word(s) of Ni; (type
-//                                 * changed with 0.9.9, was "BN_ULONG n0;"
-//                                 * before) */
-//    int flags;
-//};
-//typedef struct bn_mont_ctx_st BN_MONT_CTX;
-//struct dsa_st {
-//    /*
-//     * This first variable is used to pick up errors where a DSA is passed
-//     * instead of of a EVP_PKEY
-//     */
-//    int pad;
-//    long version;
-//    int write_params;
-//    nn *p;//BIGNUM *p;
-//    nn *q;//GNUM *q;                  /* == 20 */
-//    nn *g;//BIGNUM *g;
-//    nn *pub_key;//BIGNUM *pub_key;            /* y public key */
-//    nn *priv_key;//BIGNUM *priv_key;           /* x private key */
-//    nn *kinv;//BIGNUM *kinv;               /* Signing pre-calc */
-//    nn *r;//*BIGNUM *r;                  /* Signing pre-calc */
-//    int flags;
-//    /* Normally used to cache montgomery values */
-//    BN_MONT_CTX *method_mont_p;
-//    int references;
-//    //CRYPTO_EX_DATA ex_data;
-//    //const DSA_METHOD *meth;
-//    /* functional reference if 'meth' is ENGINE-provided */
-//    //ENGINE *engine;
-//};
-# ifdef NO_ASN1_TYPEDEFS
-#  define ASN1_INTEGER            ASN1_STRING
-#  define ASN1_ENUMERATED         ASN1_STRING
-#  define ASN1_BIT_STRING         ASN1_STRING
-#  define ASN1_OCTET_STRING       ASN1_STRING
-#  define ASN1_PRINTABLESTRING    ASN1_STRING
-#  define ASN1_T61STRING          ASN1_STRING
-#  define ASN1_IA5STRING          ASN1_STRING
-#  define ASN1_UTCTIME            ASN1_STRING
-#  define ASN1_GENERALIZEDTIME    ASN1_STRING
-#  define ASN1_TIME               ASN1_STRING
-#  define ASN1_GENERALSTRING      ASN1_STRING
-#  define ASN1_UNIVERSALSTRING    ASN1_STRING
-#  define ASN1_BMPSTRING          ASN1_STRING
-#  define ASN1_VISIBLESTRING      ASN1_STRING
-#  define ASN1_UTF8STRING         ASN1_STRING
-#  define ASN1_BOOLEAN            int
-#  define ASN1_NULL               int
-# else
+#ifdef NO_ASN1_TYPEDEFS
+#define ASN1_INTEGER            ASN1_STRING
+#define ASN1_ENUMERATED         ASN1_STRING
+#define ASN1_BIT_STRING         ASN1_STRING
+#define ASN1_OCTET_STRING       ASN1_STRING
+#define ASN1_PRINTABLESTRING    ASN1_STRING
+#define ASN1_T61STRING          ASN1_STRING
+#define ASN1_IA5STRING          ASN1_STRING
+#define ASN1_UTCTIME            ASN1_STRING
+#define ASN1_GENERALIZEDTIME    ASN1_STRING
+#define ASN1_TIME               ASN1_STRING
+#define ASN1_GENERALSTRING      ASN1_STRING
+#define ASN1_UNIVERSALSTRING    ASN1_STRING
+#define ASN1_BMPSTRING          ASN1_STRING
+#define ASN1_VISIBLESTRING      ASN1_STRING
+#define ASN1_UTF8STRING         ASN1_STRING
+#define ASN1_BOOLEAN            int
+#define ASN1_NULL               int
+#else
 typedef struct asn1_string_st ASN1_INTEGER;
 typedef struct asn1_string_st ASN1_ENUMERATED;
 typedef struct asn1_string_st ASN1_BIT_STRING;
@@ -271,7 +192,8 @@ typedef struct asn1_string_st ASN1_UTF8STRING;
 typedef struct asn1_string_st ASN1_STRING;
 typedef int ASN1_BOOLEAN;
 typedef int ASN1_NULL;
-# endif
+#endif
+typedef struct engine_st ENGINE;
 struct evp_pkey_st {
     int type;
     int save_type;
@@ -296,7 +218,14 @@ struct evp_pkey_st {
     int save_parameters;
     STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */
 } /* EVP_PKEY */ ;
-typedef struct engine_st ENGINE;
+
+struct crypto_ex_data_st {
+    STACK_OF(void) *sk;
+    /* gcc is screwing up this data structure :-( */
+    int dummy;
+};
+DECLARE_STACK_OF(void)
+
 typedef struct evp_pkey_st EVP_PKEY;
 
 typedef struct AUTHORITY_KEYID_st AUTHORITY_KEYID;

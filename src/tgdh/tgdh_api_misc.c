@@ -69,9 +69,10 @@ int print=1;
 //#include "openssl/md5.h"
 
 /* TGDH_API include files */
+#include "common.h"
 #include "tgdh_api.h"
 #include "tgdh_api_misc.h"
-#include "common.h"
+
 
 /* dmalloc CNR.  */
 #ifdef USE_DMALLOC
@@ -87,33 +88,21 @@ int number_malloc[length_memcheck];
 int number_free[length_memcheck];
 #endif
 
-int tgdh_print_dsa(DSA *dsa) {
-//  char *tmp;
+//int tgdh_print_dsa(TGDH_CONTEXT *ctx)
+//{
 //
-//  if (dsa == NULL) {
-//    fprintf(ERR_STRM,"Invalid DSA structure.\n");
-//    return 0;
-//  }
-//
-//  fprintf(ERR_STRM,"\n--- begin DSA structure ---\n");
-//  fprintf(ERR_STRM,"Size: %d\n\n",dsa->p==NULL ? 0: BN_num_bits(dsa->p));
-//  tmp=BN_bn2hex(dsa->p);
-//  fprintf(ERR_STRM,"p = %s\n", tmp==NULL ? "n.d.": tmp);
-//  free(tmp); tmp=BN_bn2hex(dsa->q);
-//  fprintf(ERR_STRM,"q = %s\n", tmp==NULL ? "n.d.": tmp);
-//  free(tmp); tmp=BN_bn2hex(dsa->g);
-//  fprintf(ERR_STRM,"g = %s\n\n", tmp==NULL ? "n.d.": tmp);
-//  free(tmp); tmp=BN_bn2hex(dsa->priv_key);
-//  fprintf(ERR_STRM,"secr = %s\n", tmp==NULL ? "n.d.": tmp);
-//  free(tmp); tmp=BN_bn2hex(dsa->pub_key);
-//  fprintf(ERR_STRM,"pub  = %s\n", tmp==NULL ? "n.d.": tmp);
-//  free (tmp);
-//  fprintf(ERR_STRM,"\n--- end DSA structure ---\n");
-//
-  return 1;
-}
+//  return 0;
+//}
 
-void tgdh_print_ctx(char *name, TGDH_CONTEXT *ctx){
+//# ifndef OPENSSL_NO_FP_API
+//int BN_print_fp(FILE *fp, const nn a)
+//{
+//
+//}
+//# endif
+
+void tgdh_print_ctx(char *name, TGDH_CONTEXT *ctx)
+{
 
   fprintf(ERR_STRM,"\n--- %s ---\n\t", name);
   if(ctx == NULL) {
@@ -128,7 +117,7 @@ void tgdh_print_ctx(char *name, TGDH_CONTEXT *ctx){
   else fprintf(ERR_STRM,"group    = NULL\t");
   if(ctx->group_secret != NULL){
     fprintf(ERR_STRM,"grpsecret= ");
-    BN_print_fp(ERR_STRM, ctx->group_secret);
+	nn_print("grpsecret= ", ctx->group_secret);
     fprintf(ERR_STRM,"\n");
   }
   else fprintf(ERR_STRM,"grpsecret= NULL\n");
@@ -246,13 +235,12 @@ void tgdh_print_node(char *name, KEY_TREE *tree) {
       fprintf(ERR_STRM,"num_node  = %d\n\t", tree->tgdh_nv->num_node);
     else fprintf(ERR_STRM,"num_node  = NULL\n\t");
     if(tree->tgdh_nv->key != NULL){
-      fprintf(ERR_STRM,"key  = ");
-      BN_print_fp(ERR_STRM, tree->tgdh_nv->key);
+	  priv_key_print("key  = ", tree->tgdh_nv->key);
     }
     else fprintf(ERR_STRM,"key  = NULL");
     if(tree->tgdh_nv->bkey != NULL){
-      fprintf(ERR_STRM,"\n\tbkey = ");
-      BN_print_fp(ERR_STRM, tree->tgdh_nv->bkey);
+      //fprintf(ERR_STRM,"\n\tbkey = ");
+	  pub_key_print("\n\tbkey = ", tree->tgdh_nv->bkey);
     }
     else fprintf(ERR_STRM,"\n\tbkey = NULL");
     fprintf(ERR_STRM,"\n\tmypt      = %x\t", (int)tree);

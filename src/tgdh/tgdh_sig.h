@@ -54,7 +54,7 @@ cliques@ics.uci.edu. */
 
 typedef struct tgdh_sign_st {
   clq_uchar *signature;
-  unsigned int/*uint*/ length;
+  unsigned int length;
 } TGDH_SIGN;
 
 

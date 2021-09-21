@@ -146,8 +146,9 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
   (*ctx)->root->tgdh_nv->member->cert=NULL;
   
   /* Compute blinded Key */
-  (*ctx)->root->tgdh_nv->bkey=
-    tgdh_compute_bkey((*ctx)->root->tgdh_nv->key, (*ctx)->params);
+  //(*ctx)->root->tgdh_nv->bkey=
+  //  tgdh_compute_bkey((*ctx)->root->tgdh_nv->key, (*ctx)->params);
+  tgdh_compute_bkey((*ctx)->root->tgdh_nv->bkey, (*ctx)->params,ECDSA);
   if((*ctx)->root->tgdh_nv->bkey== NULL){
     ret=MALLOC_ERROR;
     goto error;
@@ -184,7 +185,9 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
 
   KEY_TREE *the_sponsor=NULL;
   int sponsor = 0;
-  BN_CTX *bn_ctx=BN_CTX_new();
+  nn_t bn_ctx;//=BN_CTX_new();
+  bitcnt_t q_bit_len, q_len;
+  nn tmp_rand, qprime;
   
   if (ctx == NULL) return CTX_ERROR;
   if (member_name == NULL) return INVALID_MEMBER_NAME;
@@ -248,8 +251,9 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
 
   /* Generate new key and bkeys for the sponsor */
   nn_get_random_mod(the_sponsor->tgdh_nv->key,&(params->ec_gen_order));//the_sponsor->tgdh_nv->key=tgdh_rand(ctx->params);
-  the_sponsor->tgdh_nv->bkey=
-    tgdh_compute_bkey(the_sponsor->tgdh_nv->key, ctx->params);
+  //the_sponsor->tgdh_nv->bkey=
+  //  tgdh_compute_bkey(the_sponsor->tgdh_nv->key, ctx->params);
+  tgdh_compute_bkey(the_sponsor->tgdh_nv->bkey, ctx->params,ECDSA);
   sponsor = 1;
   
   /* Now compute every key and bkey */
@@ -276,25 +280,59 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
     tmp_tree->parent->tgdh_nv->key = BN_new();
     sponsor = 1;
     if(tmp_tree->parent->left->tgdh_nv->key != NULL){
-      ret = BN_mod(tmp_tree->parent->left->tgdh_nv->key,
-                   tmp_tree->parent->left->tgdh_nv->key,
-                   ctx->params->q, bn_ctx);
-      if(ret != OK) goto error;
-      
-      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->key, 
+/*
+      ret = BN_mod(tmp_tree->parent->left->tgdh_nv->key,    
+                   tmp_tree->parent->left->tgdh_nv->key,    
+                   ctx->params->q, bn_ctx);                 
+      if(ret != OK) goto error;                             
+                                                            
+      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->key,        
                      tmp_tree->parent->right->tgdh_nv->bkey,
-                     tmp_tree->parent->left->tgdh_nv->key,
-                     ctx->params->p,bn_ctx);
+                     tmp_tree->parent->left->tgdh_nv->key,  
+                     ctx->params->p,bn_ctx);                
+*/
+		/* compute out = tmp_rand mod q' */
+		nn_init(tmp_tree->parent->right->tgdh_nv->bkey, (u16)q_len);
+		/* Use nn_mod_notrim to avoid exposing the generated random length */
+		nn_mod_notrim(tmp_tree->parent->right->tgdh_nv->bkey, &(tmp_tree->parent->left->tgdh_nv->key), &qprime);
+
+		/* compute out += 1 */
+		nn_inc(tmp_tree->parent->right->tgdh_nv->bkey, tmp_tree->parent->right->tgdh_nv->bkey);
+		if(nn_is_initialized(&qprime))
+		{
+			nn_uninit(&qprime);
+		}
+		if(nn_is_initialized(&tmp_rand))
+		{
+			nn_uninit(&tmp_rand);
+		}
     }
     else{
-      ret = BN_mod(tmp_tree->parent->right->tgdh_nv->key,
-                   tmp_tree->parent->right->tgdh_nv->key,
-                   ctx->params->q, bn_ctx);
-      if(ret != OK) goto error;
-      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->key,
+/*
+      ret = BN_mod(tmp_tree->parent->right->tgdh_nv->key,  
+                   tmp_tree->parent->right->tgdh_nv->key,  
+                   ctx->params->q, bn_ctx);                
+      if(ret != OK) goto error;                            
+      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->key,       
                      tmp_tree->parent->left->tgdh_nv->bkey,
                      tmp_tree->parent->right->tgdh_nv->key,
-                     ctx->params->p,bn_ctx);
+                     ctx->params->p,bn_ctx);               
+*/
+		/* compute out = tmp_rand mod q' */
+		nn_init(tmp_tree->parent->left->tgdh_nv->bkey, (u16)q_len);
+		/* Use nn_mod_notrim to avoid exposing the generated random length */
+		nn_mod_notrim(tmp_tree->parent->right->tgdh_nv->bkey, &(tmp_tree->parent->left->tgdh_nv->key), &qprime);
+
+		/* compute out += 1 */
+		nn_inc(tmp_tree->parent->right->tgdh_nv->bkey, tmp_tree->parent->right->tgdh_nv->bkey);
+		if(nn_is_initialized(&qprime))
+		{
+			nn_uninit(&qprime);
+		}
+		if(nn_is_initialized(&tmp_rand))
+		{
+			nn_uninit(&tmp_rand);
+		}
     }
     if(ret != OK) {
       fprintf(stderr, "mod exp problem\n");
@@ -306,8 +344,9 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
       nn_uninit(tmp_tree->parent->tgdh_nv->bkey);
       tmp_tree->parent->tgdh_nv->bkey=NULL;
     }
-    tmp_tree->parent->tgdh_nv->bkey
-      =tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->key, ctx->params);
+    //tmp_tree->parent->tgdh_nv->bkey
+    //  =tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->key, ctx->params);
+	tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->bkey, ctx->params,ECDSA);
     
     if(tmp_tree->parent->parent == NULL) {
       break;
@@ -378,7 +417,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
   int result=OK;
   int new_status=0;
   int new_key_comp=0;
-  BN_CTX *bn_ctx=BN_CTX_new();
+  nn_t bn_ctx;//BN_CTX *bn_ctx=BN_CTX_new();
   KEY_TREE *sponsor_list[NUM_USERS+1]={NULL};
   int sponsor=0, sender=0;
   int leaveormerge=0;
@@ -427,9 +466,10 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
         new_key_comp = 1;
         if(sponsor_list[i]->tgdh_nv->key == NULL){
           nn_get_random_mod(sponsor_list[i]->tgdh_nv->key,&(params->ec_gen_order));//sponsor_list[i]->tgdh_nv->key=tgdh_rand((*ctx)->params);
-          sponsor_list[i]->tgdh_nv->bkey
-            =tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->key,
-                               (*ctx)->params);
+          //sponsor_list[i]->tgdh_nv->bkey
+          //  =tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->key,
+          //                     (*ctx)->params);
+		  tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->bkey, (*ctx)->params,ECDSA);
         }
         sponsor = 1;
       }
@@ -651,12 +691,12 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
           result=BN_mod_exp(tmp1_node->parent->tgdh_nv->key, 
                             tmp1_node->parent->right->tgdh_nv->bkey,
                             tmp1_node->parent->left->tgdh_nv->key,
-                            (*ctx)->params->p,bn_ctx);
+                            (*ctx)->params->ec_gen_order,bn_ctx);
         }
         else{
           result = BN_mod(tmp1_node->parent->right->tgdh_nv->key,
                           tmp1_node->parent->right->tgdh_nv->key,
-                          (*ctx)->params->q, bn_ctx);
+                          (*ctx)->params->ec_gen_order, bn_ctx);
           if(result != OK) goto error;
           result=BN_mod_exp(tmp1_node->parent->tgdh_nv->key,
                             tmp1_node->parent->left->tgdh_nv->bkey,
@@ -670,9 +710,11 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
           nn_uninit(tmp1_node->parent->tgdh_nv->bkey);
           tmp1_node->parent->tgdh_nv->bkey=NULL;
         }
-        tmp1_node->parent->tgdh_nv->bkey
-          =tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->key, (*ctx)->params);
-        
+        //tmp1_node->parent->tgdh_nv->bkey
+        //  =tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->key, (*ctx)->params);
+        tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->bkey, (*ctx)->params,ECDSA);
+
+
         if(tmp1_node->parent->parent == NULL) {
           break;
         }
@@ -739,7 +781,7 @@ error:
     if (ctx != NULL) tgdh_destroy_ctx(ctx,1);
   }
   if (info != NULL) tgdh_destroy_token_info(&info);
-  if (bn_ctx != NULL) BN_CTX_free (bn_ctx);
+  if (bn_ctx != NULL) nn_uninit(bn_ctx);
   
 
   return ret;
