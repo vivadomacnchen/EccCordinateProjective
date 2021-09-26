@@ -48,6 +48,7 @@ cliques@ics.uci.edu. */
 #include "error.h"
 #include "common.h"
 #include "tgdh_sig.h"
+#include "../sig/sig_algs_internal.h"
 #ifdef SIG_TIMING
 #include "tgdh_api_misc.h" /* tgdh_get_time is defined here */
 #endif
@@ -57,18 +58,31 @@ cliques@ics.uci.edu. */
 #include <dmalloc.h>
 #endif
 
+typedef struct {
+	u32 magic;		/* header header */
+	u32 type;		/* Type of the signed image */
+	u32 version;		/* Version */
+	u32 len;		/* length of data after header */
+	u32 siglen;		/* length of sig (on header + data) */
+} ATTRIBUTE_PACKED metadata_hdr;
 
 /* tgdh_sign_message: It signs the token using the current user public
  * key scheme. The signature will be appended to the begining of the
  * input token
  */
-int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input) {
+int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair, const char *hdr_type, const char *version) 
+{
   int ret=OK;
-  EVP_MD_CTX *md_ctx=NULL;
+  //EVP_MD_CTX *md_ctx=NULL;
   unsigned int sig_len=0;
   unsigned int pkey_len=0;
   clq_uchar *data=NULL;
   unsigned int pos=0;
+  hash_alg_type hash_type;
+  ec_sig_alg_type sig_type;
+  struct ec_sign_context sig_ctx;
+  metadata_hdr hdr;
+  u8 sig[EC_MAX_SIGLEN];
 #ifdef SIG_TIMING
   double Time=0.0;
 
@@ -81,32 +95,48 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input) {
     ret=INVALID_INPUT_TOKEN;
     goto error;
   }
-  md_ctx=(EVP_MD_CTX *) malloc(sizeof(EVP_MD_CTX));
-  if (md_ctx == NULL) {ret=MALLOC_ERROR; goto error;}
-  pkey_len=EVP_PKEY_size(ctx->pkey);
+//  md_ctx=(EVP_MD_CTX *) malloc(sizeof(EVP_MD_CTX));
+//  if (md_ctx == NULL) {ret=MALLOC_ERROR; goto error;}
+//  pkey_len=EVP_PKEY_size(ctx->pkey);
   data=(clq_uchar *) malloc (pkey_len+(input->length)+TOTAL_INT);
 
-  if (ctx->pkey->type == EVP_PKEY_RSA)
-    EVP_SignInit (md_ctx, RSA_MD());
-  else if (ctx->pkey->type == EVP_PKEY_DSA)
-    EVP_SignInit (md_ctx, DSA_MD());
-  else {
-    ret=INVALID_SIGNATURE_SCHEME;
-    goto error;
-  }
+//  if (ctx->pkey->type == EVP_PKEY_RSA)
+//    EVP_SignInit (md_ctx, RSA_MD());
+//  else if (ctx->pkey->type == EVP_PKEY_DSA)
+//    EVP_SignInit (md_ctx, DSA_MD());
+//  else {
+//    ret=INVALID_SIGNATURE_SCHEME;
+//    goto error;
+//  }
+//
+//  EVP_SignUpdate (md_ctx, input->t_data, input->length);
+//
+//  /* Encoding size of the signature (an integer), the signature
+//     ittgdh, and then the data */
+//  ret = EVP_SignFinal (md_ctx, data+TOTAL_INT, &sig_len, ctx->pkey);
+//  if (ret == 0) {
+//#ifdef SIG_DEBUG
+//    ERR_print_errors_fp (stderr);
+//#endif
+//    ret=SIGNATURE_ERROR;
+//    goto error;
+//  }
+  //
+  ret = ec_sign_init(&sig_ctx, &key_pair, sig_type, hash_type);
+  if((hdr_type != NULL) && (version != NULL)){
+		ret = ec_sign_update(&sig_ctx, (const u8 *)&hdr, sizeof(metadata_hdr));
+		if (ret) {
+			printf("Error: error when signing\n");
+			goto err;
+		}
+	}
+  ret = ec_sign_finalize(&sig_ctx, sig, siglen);
+	if (ret) {
+		printf("Error: error when signing\n");
+		goto err;
+	}
 
-  EVP_SignUpdate (md_ctx, input->t_data, input->length);
-
-  /* Encoding size of the signature (an integer), the signature
-     ittgdh, and then the data */
-  ret = EVP_SignFinal (md_ctx, data+TOTAL_INT, &sig_len, ctx->pkey);
-  if (ret == 0) {
-#ifdef SIG_DEBUG
-    ERR_print_errors_fp (stderr);
-#endif
-    ret=SIGNATURE_ERROR;
-    goto error;
-  }
+  //
   ret = OK;
 
   int_encode (data,&pos,sig_len);

@@ -62,7 +62,7 @@ typedef struct tgdh_sign_st {
  * key scheme. The signature will be appended to the begining of the
  * input token
  */
-int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input);
+int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair, const char *hdr_type, const char *version);
 
 int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 		   CLQ_TOKEN *input,  CLQ_NAME *member_name,

@@ -686,7 +686,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
         if(tmp1_node->parent->left->tgdh_nv->key != NULL){
            result = BN_mod(tmp1_node->parent->left->tgdh_nv->key, 
                            tmp1_node->parent->left->tgdh_nv->key, 
-                           (*ctx)->params->q, bn_ctx); 
+                           (*ctx)->params->ec_gen_order, bn_ctx); 
           if(result != OK) goto error;
           result=BN_mod_exp(tmp1_node->parent->tgdh_nv->key, 
                             tmp1_node->parent->right->tgdh_nv->bkey,
@@ -701,7 +701,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
           result=BN_mod_exp(tmp1_node->parent->tgdh_nv->key,
                             tmp1_node->parent->left->tgdh_nv->bkey,
                             tmp1_node->parent->right->tgdh_nv->key,
-                            (*ctx)->params->p,bn_ctx);
+                            (*ctx)->params->ec_fp.p,bn_ctx);
         }
         if(result != OK) goto error;
         
@@ -848,7 +848,7 @@ error:
 //
 //  return new_bkey;
 //}
-int tgdh_compute_bkey(ec_key_pair *kp, const ec_params *params,
+nn *tgdh_compute_bkey(ec_key_pair *kp, const ec_params *params,
 		    ec_sig_alg_type ec_key_alg)
 {
 	int ret = -1;
