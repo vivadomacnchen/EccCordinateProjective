@@ -66,6 +66,7 @@ typedef struct {
 	u32 siglen;		/* length of sig (on header + data) */
 } ATTRIBUTE_PACKED metadata_hdr;
 
+
 /* tgdh_sign_message: It signs the token using the current user public
  * key scheme. The signature will be appended to the begining of the
  * input token
@@ -83,6 +84,7 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
   struct ec_sign_context sig_ctx;
   metadata_hdr hdr;
   u8 sig[EC_MAX_SIGLEN];
+  u8 siglen;
 #ifdef SIG_TIMING
   double Time=0.0;
 

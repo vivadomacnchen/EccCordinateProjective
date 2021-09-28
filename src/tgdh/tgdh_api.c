@@ -76,6 +76,11 @@ cliques@ics.uci.edu. */
 #ifndef MD5_DIGEST_LENGTH
 #define MD5_DIGEST_LENGTH 32
 #endif
+
+static ec_key_pair key_pair;
+static char *hdr_type;
+static char *version;
+
 /* tgdh_new_member is called by the new member in order to create its
  *   own context. Main functionality of this function is to generate
  *   session random for the member
@@ -374,7 +379,7 @@ error:
     }
     /* sign_message */
     if(ret == 1){
-      ret=tgdh_sign_message (ctx, *output);
+      ret=tgdh_sign_message (ctx, *output,key_pair,hdr_type,version);
     }
   }
   
@@ -759,7 +764,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
     if (result!=OK) goto error;
 
     /* Sign output token; */
-    result=tgdh_sign_message ((*ctx), *output);
+    result=tgdh_sign_message ((*ctx), *output,key_pair,hdr_type,version);
   }
 
 error:
