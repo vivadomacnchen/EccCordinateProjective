@@ -279,7 +279,7 @@ typedef struct x509_cinf_st {
     X509_NAME *issuer;
     X509_VAL *validity;
     X509_NAME *subject;
-    X509_PUBKEY *key;
+    ec_pub_key *key;//X509_PUBKEY *key;
     ASN1_BIT_STRING *issuerUID; /* [ 1 ] optional in v2 */
     ASN1_BIT_STRING *subjectUID; /* [ 2 ] optional in v2 */
     STACK_OF(X509_EXTENSION) *extensions; /* [ 3 ] optional in v3 */

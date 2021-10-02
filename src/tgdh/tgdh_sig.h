@@ -64,7 +64,7 @@ typedef struct tgdh_sign_st {
  */
 int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair, const char *hdr_type, const char *version);
 
-int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
+int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *hash_algorithm, TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 		   CLQ_TOKEN *input,  CLQ_NAME *member_name,
 		   TGDH_SIGN *sign);
 
