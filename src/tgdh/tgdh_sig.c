@@ -58,6 +58,8 @@ cliques@ics.uci.edu. */
 #include <dmalloc.h>
 #endif
 
+#define MAX_BUF_LEN     8192
+
 typedef struct {
 	u32 magic;		/* header header */
 	u32 type;		/* Type of the signed image */
@@ -129,13 +131,13 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
 		ret = ec_sign_update(&sig_ctx, (const u8 *)&hdr, sizeof(metadata_hdr));
 		if (ret) {
 			printf("Error: error when signing\n");
-			goto err;
+			goto error;
 		}
 	}
   ret = ec_sign_finalize(&sig_ctx, sig, siglen);
 	if (ret) {
 		printf("Error: error when signing\n");
-		goto err;
+		goto error;
 	}
 
   //
@@ -153,7 +155,7 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
 
  error:
 
-  if (md_ctx != NULL) free (md_ctx);
+  //if (md_ctx != NULL) free (md_ctx);
   if (ret != OK) free(data);
 
 #ifdef SIG_TIMING
@@ -169,9 +171,29 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
                    TGDH_SIGN *sign) 
 { 
   int ret=OK;
-  EVP_MD_CTX *md_ctx=NULL;
-  EVP_PKEY *pubkey=NULL; /* will not to the public key of member_name */
+  //EVP_MD_CTX *md_ctx=NULL;
+  //EVP_PKEY *pubkey=NULL; /* will not to the public key of member_name */
   KEY_TREE *tmp_tree=NULL;
+  u8 st_sig[EC_STRUCTURED_SIG_EXPORT_SIZE(EC_MAX_SIGLEN)];
+  u8 stored_curve_name[MAX_CURVE_NAME_LEN];
+  u8 pub_key_buf[EC_STRUCTURED_PUB_KEY_MAX_EXPORT_SIZE];
+  struct ec_verify_context verif_ctx;
+  ec_sig_alg_type stored_sig_type;
+  hash_alg_type stored_hash_type;
+  const ec_str_params *ec_str_p;
+  ec_sig_alg_type sig_type;
+  hash_alg_type hash_type;
+  u8 sig[EC_MAX_SIGLEN];
+  u8 siglen, st_siglen;
+  size_t read, to_read;
+  u8 buf[MAX_BUF_LEN];
+  u8 pub_key_buf_len;
+  size_t raw_data_len;
+  ec_pub_key pub_key;
+  ec_params params;
+  metadata_hdr hdr;
+  size_t exp_len;
+
 #ifdef SIG_TIMING
   double Time=0.0;
 
@@ -186,8 +208,8 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
     goto error;
   }
   if (sign==(TGDH_SIGN*) NULL) {ret=INVALID_SIGNATURE; goto error;}
-  md_ctx=(EVP_MD_CTX *) malloc(sizeof(EVP_MD_CTX));
-  if (md_ctx == NULL) {ret=MALLOC_ERROR; goto error;}
+  //md_ctx=(EVP_MD_CTX *) malloc(sizeof(EVP_MD_CTX));
+  //if (md_ctx == NULL) {ret=MALLOC_ERROR; goto error;}
 
   /* Searching for the member and obtainig the public key if needed */
   tmp_tree=tgdh_search_member(new_ctx->root, 4, member_name);
@@ -205,19 +227,173 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
     if (X509_get_pubkey(tmp_tree->tgdh_nv->member->cert) == 
         (EVP_PKEY *) NULL) {ret=INVALID_PKEY; goto error; } 
   }
+  
+  MUST_HAVE(ec_name != NULL);
 
+  /************************************/
+  /* Get parameters from pretty names */
+  if (string_to_params(ec_name, ec_sig_name, &sig_type, &ec_str_p,
+  			 hash_algorithm, &hash_type)) 
+  {
+	goto err;
+  }
+  /* Import the parameters */
+  import_params(&params, ec_str_p);
+
+  ret = ec_get_sig_len(&params, sig_type, hash_type, &siglen);
+  if (ret) 
+  {
+  	printf("Error getting effective signature length from %s\n",
+   		   (const char *)(ec_str_p->name->buf));
+   	goto err;
+  }
   pubkey=tmp_tree->tgdh_nv->member->cert->cert_info->key->pkey;
-  if (pubkey->type == EVP_PKEY_RSA)
-    EVP_VerifyInit (md_ctx, RSA_MD());
-  else if (pubkey->type == EVP_PKEY_DSA)
-    EVP_VerifyInit (md_ctx, DSA_MD());
-  else {
-    ret=INVALID_SIGNATURE_SCHEME;
-    goto error;
+  pub_key_buf_len =
+  ret = ec_structured_pub_key_import_from_buf(&pub_key, &params,
+						    pub_key_buf,
+						    pub_key_buf_len, sig_type);
+  if (ret) 
+  {
+		printf("Error: error when importing public key from %s\n",
+		       in_key_fname);
+		goto error;
   }
 
-  EVP_VerifyUpdate (md_ctx, input->t_data, input->length);
-  ret = EVP_VerifyFinal (md_ctx, sign->signature, sign->length, pubkey);
+  if (in_sig_fname == NULL) 
+  {
+		/* ... and first read metadata header */
+		hdr=(metadata_hdr *)ctx;	
+		/* Sanity checks on the header we get */
+		if (hdr.magic != HDR_MAGIC) {
+			printf("Error: got magic 0x%08x instead of 0x%08x "
+			       "from metadata header\n", hdr.magic, HDR_MAGIC);
+			goto error;
+		}
+
+		st_siglen = EC_STRUCTURED_SIG_EXPORT_SIZE(siglen);
+		MUST_HAVE(raw_data_len > (sizeof(hdr) + st_siglen));
+		exp_len = raw_data_len - sizeof(hdr) - st_siglen;
+		if (hdr.len != exp_len) {
+			printf("Error: got raw size of %u instead of %lu from "
+			       "metadata header\n", hdr.len,
+			       (unsigned long)exp_len);
+			goto err;
+		}
+
+		if (hdr.siglen != st_siglen) {
+			printf("Error: got siglen %u instead of %d from "
+			       "metadata header\n", hdr.siglen, siglen);
+			goto err;
+		}
+
+		/* Dump the header */
+		dump_hdr_info(&hdr);
+
+		/*
+		 * We now need to seek in file to get structured signature.
+		 * Before doing that, let's first check size is large enough.
+		 */
+		if (raw_data_len < (sizeof(hdr) + st_siglen)) {
+			goto err;
+		}
+
+		ret = fseek(in_file, (long)(raw_data_len - st_siglen),
+			    SEEK_SET);
+		if (ret) {
+			printf("Error: file %s cannot be seeked\n", in_fname);
+			goto err;
+		}
+		read = fread(st_sig, 1, st_siglen, in_file);
+		if (read != st_siglen) {
+			printf("Error: unable to read structure sig from "
+			       "file\n");
+			fclose(in_file);
+			goto err;
+		}
+
+		/* Import the signature from the structured signature buffer */
+		ret = ec_structured_sig_import_from_buf(sig, siglen,
+							st_sig, st_siglen,
+							&stored_sig_type,
+							&stored_hash_type,
+							stored_curve_name);
+		if (ret) {
+			printf("Error: error when importing signature "
+			       "from %s\n", in_fname);
+			goto err;
+		}
+		if (stored_sig_type != sig_type) {
+			printf("Error: signature type imported from signature "
+			       "mismatches with %s\n", ec_sig_name);
+			goto err;
+		}
+		if (stored_hash_type != hash_type) {
+			printf("Error: hash algorithm type imported from "
+			       "signature mismatches with %s\n",
+			       hash_algorithm);
+			goto err;
+		}
+		if (!are_str_equal((char *)stored_curve_name,
+				   (char *)params.curve_name)) {
+			printf("Error: curve type '%s' imported from signature "
+			       "mismatches with '%s'\n", stored_curve_name,
+			       params.curve_name);
+			goto err;
+		}
+
+		/*
+		 * Get back to the beginning of file, at the beginning of header
+		 */
+		if (fseek(in_file, 0, SEEK_SET)) {
+			printf("Error: file %s cannot be seeked\n", in_fname);
+			goto err;
+		}
+		exp_len += sizeof(hdr);
+   } 
+   else 
+   {
+		/* Get the signature size */
+		ret = get_file_size(in_sig_fname, &to_read);
+		if (ret) {
+			printf("Error: cannot retrieve file %s size\n",
+			       in_sig_fname);
+			goto err;
+		}
+		if((to_read > EC_MAX_SIGLEN) || (to_read > 255)){
+			/* This is not an expected size, get out */
+			printf("Error: size %d of signature in %s is > max "
+			       "signature size %d or > 255",
+			       (int)to_read, in_sig_fname, EC_MAX_SIGLEN);
+			goto err;
+		}
+		siglen = (u8)to_read;
+		/* Read the raw signature from the signature file */
+		in_sig_file = fopen(in_sig_fname, "r");
+		if (in_sig_file == NULL) {
+			printf("Error: file %s cannot be opened\n",
+			       in_sig_fname);
+			goto err;
+		}
+		read = fread(&sig, 1, siglen, in_sig_file);
+		fclose(in_sig_file);
+		if (read != siglen) {
+			printf("Error: unable to read signature from %s\n",
+			       in_sig_fname);
+			goto err;
+		}
+		exp_len = raw_data_len;
+   }
+//  if (pubkey->type == EVP_PKEY_RSA)
+//    EVP_VerifyInit (md_ctx, RSA_MD());
+//  else if (pubkey->type == EVP_PKEY_DSA)
+//    EVP_VerifyInit (md_ctx, DSA_MD());
+//  else {
+//    ret=INVALID_SIGNATURE_SCHEME;
+//    goto error;
+//  }
+
+//  EVP_VerifyUpdate (md_ctx, input->t_data, input->length);
+//  ret = EVP_VerifyFinal (md_ctx, sign->signature, sign->length, pubkey);
   if (ret == 0) {
 #ifdef SIG_DEBUG
     ERR_print_errors_fp (stderr);
@@ -229,7 +405,7 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 
  error:
 
-  if (md_ctx != NULL) free (md_ctx);
+//  if (md_ctx != NULL) free (md_ctx);
 
 #ifdef SIG_TIMING
   Time=tgdh_get_time()-Time;
