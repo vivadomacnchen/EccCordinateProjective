@@ -192,7 +192,7 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
   size_t raw_data_len;
   ec_pub_key pub_key;
   ec_params params;
-  metadata_hdr hdr;
+  metadata_hdr *hdr;
   size_t exp_len;
 
 #ifdef SIG_TIMING
@@ -231,7 +231,7 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
   if (string_to_params(ec_name, ec_sig_name, &sig_type, &ec_str_p,
   			 hash_algorithm, &hash_type)) 
   {
-	goto err;
+	goto error;
   }
   /* Import the parameters */
   import_params(&params, ec_str_p);
@@ -241,7 +241,7 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
   {
   	printf("Error getting effective signature length from %s\n",
    		   (const char *)(ec_str_p->name->buf));
-   	goto err;
+   	goto error;
   }
   //pub_key=tmp_tree->tgdh_nv->member->cert->cert_info->key);
   pub_key_buf_len = EC_STRUCTURED_PUB_KEY_EXPORT_SIZE(&(tmp_tree->tgdh_nv->member->cert->cert_info->key));
@@ -257,11 +257,11 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
   if (in_sig_fname == NULL) 
   {
 		/* ... and first read metadata header */
-		hdr=(metadata_hdr *)ctx;	
+		hdr=ctx->hdr;	
 		/* Sanity checks on the header we get */
-		if (hdr.magic != HDR_MAGIC) {
+		if (hdr->magic != HDR_MAGIC) {
 			printf("Error: got magic 0x%08x instead of 0x%08x "
-			       "from metadata header\n", hdr.magic, HDR_MAGIC);
+			       "from metadata header\n", hdr->magic, HDR_MAGIC);
 			goto error;
 		}
 
@@ -272,13 +272,13 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
 			printf("Error: got raw size of %u instead of %lu from "
 			       "metadata header\n", hdr.len,
 			       (unsigned long)exp_len);
-			goto err;
+			goto error;
 		}
 
-		if (hdr.siglen != st_siglen) {
+		if (hdr->siglen != st_siglen) {
 			printf("Error: got siglen %u instead of %d from "
 			       "metadata header\n", hdr.siglen, siglen);
-			goto err;
+			goto error;
 		}
 
 		/* Dump the header */
@@ -289,7 +289,7 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
 		 * Before doing that, let's first check size is large enough.
 		 */
 		if (raw_data_len < (sizeof(hdr) + st_siglen)) {
-			goto err;
+			goto error;
 		}
 
 		/* Import the signature from the structured signature buffer */
@@ -300,18 +300,18 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
 							stored_curve_name);
 		if (ret) {
 			printf("Error: error when importing signature ");
-			goto err;
+			goto error;
 		}
 		if (stored_sig_type != sig_type) {
 			printf("Error: signature type imported from signature "
 			       "mismatches with %s\n", ec_sig_name);
-			goto err;
+			goto error;
 		}
 		if (stored_hash_type != hash_type) {
 			printf("Error: hash algorithm type imported from "
 			       "signature mismatches with %s\n",
 			       hash_algorithm);
-			goto err;
+			goto error;
 		}
 		if (!are_str_equal((char *)stored_curve_name,
 				   (char *)params.curve_name)) {

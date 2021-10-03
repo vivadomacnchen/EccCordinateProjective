@@ -115,8 +115,19 @@ typedef struct key_tree {
   TGDH_NV *tgdh_nv;        /* Node values if this node is intermediate */
 } KEY_TREE;
 
+//
+typedef struct {
+	u32 magic;		/* header header */
+	u32 type;		/* Type of the signed image */
+	u32 version;		/* Version */
+	u32 len;		/* length of data after header */
+	u32 siglen;		/* length of sig (on header + data) */
+} ATTRIBUTE_PACKED metadata_hdr;
+//
+
 /* TGDH_CONTEXT: BGKA context */
 typedef struct tgdh_context_st {
+  metadata_hdr *hdr;
   CLQ_NAME *member_name;
   CLQ_NAME *group_name;
   nn *group_secret; 
