@@ -61,14 +61,6 @@ cliques@ics.uci.edu. */
 #define MAX_BUF_LEN     8192
 #define HDR_MAGIC        0x34215609
 
-typedef struct {
-	u32 magic;		/* header header */
-	u32 type;		/* Type of the signed image */
-	u32 version;		/* Version */
-	u32 len;		/* length of data after header */
-	u32 siglen;		/* length of sig (on header + data) */
-} ATTRIBUTE_PACKED metadata_hdr;
-
 
 /* tgdh_sign_message: It signs the token using the current user public
  * key scheme. The signature will be appended to the begining of the
@@ -167,101 +159,104 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
   return ret;                                                        
 }
 
-int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *hash_algorithm, TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
+int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
                    CLQ_TOKEN *input, CLQ_NAME *member_name,
-                   TGDH_SIGN *sign) 
+				   TGDH_SIGN *sign, const ec_params *params)
 { 
-  int ret=OK;
-  //EVP_MD_CTX *md_ctx=NULL;
-  //EVP_PKEY *pubkey=NULL; /* will not to the public key of member_name */
-  KEY_TREE *tmp_tree=NULL;
-  u8 st_sig[EC_STRUCTURED_SIG_EXPORT_SIZE(EC_MAX_SIGLEN)];
-  u8 stored_curve_name[MAX_CURVE_NAME_LEN];
-  u8 pub_key_buf[EC_STRUCTURED_PUB_KEY_MAX_EXPORT_SIZE];
-  struct ec_verify_context verif_ctx;
-  ec_sig_alg_type stored_sig_type;
-  hash_alg_type stored_hash_type;
-  const ec_str_params *ec_str_p;
-  ec_sig_alg_type sig_type;
-  hash_alg_type hash_type;
-  u8 sig[EC_MAX_SIGLEN];
-  u8 siglen, st_siglen;
-  size_t read, to_read;
-  u8 buf[MAX_BUF_LEN];
-  u8 pub_key_buf_len;
-  size_t raw_data_len;
-  ec_pub_key pub_key;
-  ec_params params;
-  metadata_hdr *hdr;
-  size_t exp_len;
+	int ret=OK;
+	//EVP_MD_CTX *md_ctx=NULL;
+	//EVP_PKEY *pubkey=NULL; /* will not to the public key of member_name */
+	KEY_TREE *tmp_tree=NULL;
+	u8 st_sig[EC_STRUCTURED_SIG_EXPORT_SIZE(EC_MAX_SIGLEN)];
+	u8 stored_curve_name[MAX_CURVE_NAME_LEN];
+	u8 pub_key_buf[EC_STRUCTURED_PUB_KEY_MAX_EXPORT_SIZE];
+	struct ec_verify_context verif_ctx;
+	ec_sig_alg_type stored_sig_type;
+	hash_alg_type stored_hash_type;
+	const ec_str_params *ec_str_p;
+	ec_sig_alg_type sig_type;
+	hash_alg_type hash_type;
+	u8 sig[EC_MAX_SIGLEN];
+	u8 siglen, st_siglen;
+	size_t read, to_read;
+	u8 buf[MAX_BUF_LEN];
+	u8 pub_key_buf_len;
+	size_t raw_data_len;
+	ec_pub_key pub_key;
+	//ec_params params;
+	metadata_hdr *hdr;
+	size_t exp_len;
 
 #ifdef SIG_TIMING
-  double Time=0.0;
-
-  Time=tgdh_get_time();
+	double Time=0.0;
+	Time=tgdh_get_time();
 #endif
 
-  if (ctx==(TGDH_CONTEXT *)NULL) {ret=CTX_ERROR; goto error;}
-  if (new_ctx==(TGDH_CONTEXT *)NULL) {ret=CTX_ERROR; goto error;}
-  if (input==(CLQ_TOKEN*) NULL){
-    fprintf(stderr, "TOKEN NULL=vrfy\n");
-    ret=INVALID_INPUT_TOKEN;
-    goto error;
-  }
-  if (sign==(TGDH_SIGN*) NULL) {ret=INVALID_SIGNATURE; goto error;}
-  //md_ctx=(EVP_MD_CTX *) malloc(sizeof(EVP_MD_CTX));
-  //if (md_ctx == NULL) {ret=MALLOC_ERROR; goto error;}
+	if (ctx==(TGDH_CONTEXT *)NULL) {ret=CTX_ERROR; goto error;}
+	if (new_ctx==(TGDH_CONTEXT *)NULL) {ret=CTX_ERROR; goto error;}
+	if (input==(CLQ_TOKEN*) NULL)
+	{
+		fprintf(stderr, "TOKEN NULL=vrfy\n");
+		ret=INVALID_INPUT_TOKEN;
+		goto error;
+	}
+	if (sign==(TGDH_SIGN*) NULL) {ret=INVALID_SIGNATURE; goto error;}
+	//md_ctx=(EVP_MD_CTX *) malloc(sizeof(EVP_MD_CTX));
+	//if (md_ctx == NULL) {ret=MALLOC_ERROR; goto error;}
 
-  /* Searching for the member and obtainig the public key if needed */
-  tmp_tree=tgdh_search_member(new_ctx->root, 4, member_name);
-  if (tmp_tree==NULL) {
-    ret=MEMBER_NOT_IN_GROUP; goto error;
-  }
+	/* Searching for the member and obtainig the public key if needed */
+	tmp_tree=tgdh_search_member(new_ctx->root, 4, member_name);
+	if (tmp_tree==NULL) 
+	{
+		ret=MEMBER_NOT_IN_GROUP; goto error;
+	}
 
-  if (tmp_tree->tgdh_nv->member->cert==NULL) {
-    tmp_tree->tgdh_nv->member->cert=clq_get_cert(member_name);
-    if (tmp_tree->tgdh_nv->member->cert == NULL) 
-      {ret=INVALID_MEMBER_NAME; goto error;}
-  }
+	if (tmp_tree->tgdh_nv->member->cert==NULL) 
+	{
+		tmp_tree->tgdh_nv->member->cert=clq_get_cert(member_name);
+		if (tmp_tree->tgdh_nv->member->cert == NULL) 
+		{ret=INVALID_MEMBER_NAME; goto error;}
+	}
 
-  MUST_HAVE(ec_name != NULL);
+//	MUST_HAVE(ec_name != NULL);
+//
+//	/************************************/
+//	/* Get parameters from pretty names */
+//	if (string_to_params(ec_name, ec_sig_name, &sig_type, &ec_str_p,
+//	hash_algorithm, &hash_type)) 
+//	{
+//		goto error;
+//	}
+	/* Import the parameters */
+	import_params(&params, ec_str_p);
 
-  /************************************/
-  /* Get parameters from pretty names */
-  if (string_to_params(ec_name, ec_sig_name, &sig_type, &ec_str_p,
-  			 hash_algorithm, &hash_type)) 
-  {
-	goto error;
-  }
-  /* Import the parameters */
-  import_params(&params, ec_str_p);
-
-  ret = ec_get_sig_len(&params, sig_type, hash_type, &siglen);
-  if (ret) 
-  {
-  	printf("Error getting effective signature length from %s\n",
-   		   (const char *)(ec_str_p->name->buf));
-   	goto error;
-  }
-  //pub_key=tmp_tree->tgdh_nv->member->cert->cert_info->key);
-  pub_key_buf_len = EC_STRUCTURED_PUB_KEY_EXPORT_SIZE(&(tmp_tree->tgdh_nv->member->cert->cert_info->key));
-  ret = ec_structured_pub_key_import_from_buf(tmp_tree->tgdh_nv->member->cert->cert_info->key, &params,
-						    pub_key_buf,
-						    pub_key_buf_len, sig_type);
-  if (ret) 
-  {
+	ret = ec_get_sig_len(&params, sig_type, hash_type, &siglen);
+	if (ret) 
+	{
+		printf("Error getting effective signature length from %s\n",
+			   (const char *)(ec_str_p->name->buf));
+		goto error;
+	}
+	//pub_key=tmp_tree->tgdh_nv->member->cert->cert_info->key);
+	pub_key_buf_len = EC_STRUCTURED_PUB_KEY_EXPORT_SIZE(&(tmp_tree->tgdh_nv->member->cert->cert_info->key));
+	ret = ec_structured_pub_key_import_from_buf(tmp_tree->tgdh_nv->member->cert->cert_info->key, &params,
+						pub_key_buf,
+						pub_key_buf_len, sig_type);
+	if (ret) 
+	{
 		printf("Error: error when importing public key from %s\n");
 		goto error;
-  }
+	}
 
-  if (in_sig_fname == NULL) 
-  {
-		/* ... and first read metadata header */
+	if (in_sig_fname == NULL) 
+	{
+	/* ... and first read metadata header */
 		hdr=ctx->hdr;	
-		/* Sanity checks on the header we get */
-		if (hdr->magic != HDR_MAGIC) {
+	/* Sanity checks on the header we get */
+		if (hdr->magic != HDR_MAGIC) 
+		{
 			printf("Error: got magic 0x%08x instead of 0x%08x "
-			       "from metadata header\n", hdr->magic, HDR_MAGIC);
+				   "from metadata header\n", hdr->magic, HDR_MAGIC);
 			goto error;
 		}
 
@@ -270,14 +265,14 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
 		exp_len = raw_data_len - sizeof(hdr) - st_siglen;
 		if (hdr.len != exp_len) {
 			printf("Error: got raw size of %u instead of %lu from "
-			       "metadata header\n", hdr.len,
-			       (unsigned long)exp_len);
+				   "metadata header\n", hdr->len,
+				   (unsigned long)exp_len);
 			goto error;
 		}
 
 		if (hdr->siglen != st_siglen) {
 			printf("Error: got siglen %u instead of %d from "
-			       "metadata header\n", hdr.siglen, siglen);
+				   "metadata header\n", hdr->siglen, siglen);
 			goto error;
 		}
 
@@ -288,75 +283,82 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
 		 * We now need to seek in file to get structured signature.
 		 * Before doing that, let's first check size is large enough.
 		 */
-		if (raw_data_len < (sizeof(hdr) + st_siglen)) {
+		if (raw_data_len < (sizeof(hdr) + st_siglen)) 
+		{
 			goto error;
 		}
 
-		/* Import the signature from the structured signature buffer */
+	/* Import the signature from the structured signature buffer */
 		ret = ec_structured_sig_import_from_buf(sig, siglen,
-							st_sig, st_siglen,
-							&stored_sig_type,
-							&stored_hash_type,
-							stored_curve_name);
-		if (ret) {
+												st_sig, st_siglen,
+												&stored_sig_type,
+												&stored_hash_type,
+												stored_curve_name);
+		if (ret) 
+		{
 			printf("Error: error when importing signature ");
 			goto error;
 		}
-		if (stored_sig_type != sig_type) {
-			printf("Error: signature type imported from signature "
-			       "mismatches with %s\n", ec_sig_name);
-			goto error;
-		}
-		if (stored_hash_type != hash_type) {
-			printf("Error: hash algorithm type imported from "
-			       "signature mismatches with %s\n",
-			       hash_algorithm);
-			goto error;
-		}
+//		if (stored_sig_type != sig_type) {
+//			printf("Error: signature type imported from signature "
+//				   "mismatches with %s\n", ec_sig_name);
+//			goto error;
+//		}
+//		if (stored_hash_type != hash_type) 
+//		{
+//			printf("Error: hash algorithm type imported from "
+//				   "signature mismatches with %s\n",
+//				   hash_algorithm);
+//			goto error;
+//		}
 		if (!are_str_equal((char *)stored_curve_name,
-				   (char *)params.curve_name)) {
+			   (char *)params.curve_name)) 
+		{
 			printf("Error: curve type '%s' imported from signature "
-			       "mismatches with '%s'\n", stored_curve_name,
-			       params.curve_name);
+				   "mismatches with '%s'\n", stored_curve_name,
+				   params.curve_name);
 			goto error;
 		}
 
 		dump_hdr_info(&hdr);
 		ret = ec_structured_sig_import_from_buf(sig, siglen,
-							st_sig, st_siglen,
-							&stored_sig_type,
-							&stored_hash_type,
-							stored_curve_name);
-		if (ret) {
+						st_sig, st_siglen,
+						&stored_sig_type,
+						&stored_hash_type,
+						stored_curve_name);
+		if (ret) 
+		{
 			printf("Error: error when importing signature ");
 			goto error;
 		}
-		if (stored_sig_type != sig_type) {
+		if (stored_sig_type != sig_type) 
+		{
 			printf("Error: signature type imported from signature "
-			       "mismatches with %s\n", ec_sig_name);
+				   "mismatches with %s\n", ec_sig_name);
 			goto error;
 		}
-		if (stored_hash_type != hash_type) {
+		if (stored_hash_type != hash_type) 
+		{
 			printf("Error: hash algorithm type imported from "
-			       "signature mismatches with %s\n",
-			       hash_algorithm);
+				   "signature mismatches with %s\n",
+				   hash_algorithm);
 			goto error;
 		}
 		if (!are_str_equal((char *)stored_curve_name,
-				   (char *)params.curve_name)) {
+			   (char *)params.curve_name)) 
+		{
 			printf("Error: curve type '%s' imported from signature "
-			       "mismatches with '%s'\n", stored_curve_name,
-			       params.curve_name);
+				   "mismatches with '%s'\n", stored_curve_name,
+				   params.curve_name);
 			goto error;
 		}
 		exp_len += sizeof(hdr);
-   } 
-   else 
-   {
-
+	} 
+	else 
+	{
 		/* Read the raw signature from the signature file */
 		exp_len = raw_data_len;
-   }
+	}
 //  if (pubkey->type == EVP_PKEY_RSA)
 //    EVP_VerifyInit (md_ctx, RSA_MD());
 //  else if (pubkey->type == EVP_PKEY_DSA)
@@ -368,16 +370,29 @@ int tgdh_vrfy_sign(const char *ec_name, const char *ec_sig_name, const char *has
 
 //  EVP_VerifyUpdate (md_ctx, input->t_data, input->length);
 //  ret = EVP_VerifyFinal (md_ctx, sign->signature, sign->length, pubkey);
-  if (ret == 0) {
-#ifdef SIG_DEBUG
-    ERR_print_errors_fp (stderr);
-#endif
-    ret=SIGNATURE_DIFER;
-    goto error;
-  }
-  ret = OK;
+	ret = ec_verify_init(&verif_ctx, &pub_key, sig, siglen,
+						 sig_type, hash_type);
+	if (ret) {
+		goto error;
+	}
+	ret = ec_verify_update(&verif_ctx, buf, (u32)read);
 
- error:
+	if (ret == 0) 
+	{
+		#ifdef SIG_DEBUG
+		ERR_print_errors_fp (stderr);
+		#endif
+		ret=SIGNATURE_DIFER;
+		goto error;
+	}
+	ret = ec_verify_finalize(&verif_ctx);
+	if (ret) 
+	{
+		goto error;
+	}
+	ret = OK;
+
+error:
 
 //  if (md_ctx != NULL) free (md_ctx);
 
