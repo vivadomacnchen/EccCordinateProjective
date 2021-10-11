@@ -161,7 +161,7 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
 
 int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
                    CLQ_TOKEN *input, CLQ_NAME *member_name,
-				   TGDH_SIGN *sign, const ec_params *params)
+				   TGDH_SIGN *sign, const ec_params *params, const char *in_sig_fname)
 { 
 	int ret=OK;
 	//EVP_MD_CTX *md_ctx=NULL;
@@ -263,7 +263,7 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 		st_siglen = EC_STRUCTURED_SIG_EXPORT_SIZE(siglen);
 		MUST_HAVE(raw_data_len > (sizeof(hdr) + st_siglen));
 		exp_len = raw_data_len - sizeof(hdr) - st_siglen;
-		if (hdr.len != exp_len) {
+		if (hdr->len != exp_len) {
 			printf("Error: got raw size of %u instead of %lu from "
 				   "metadata header\n", hdr->len,
 				   (unsigned long)exp_len);
@@ -299,24 +299,12 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 			printf("Error: error when importing signature ");
 			goto error;
 		}
-//		if (stored_sig_type != sig_type) {
-//			printf("Error: signature type imported from signature "
-//				   "mismatches with %s\n", ec_sig_name);
-//			goto error;
-//		}
-//		if (stored_hash_type != hash_type) 
-//		{
-//			printf("Error: hash algorithm type imported from "
-//				   "signature mismatches with %s\n",
-//				   hash_algorithm);
-//			goto error;
-//		}
 		if (!are_str_equal((char *)stored_curve_name,
-			   (char *)params.curve_name)) 
+			   (char *)params->curve_name)) 
 		{
 			printf("Error: curve type '%s' imported from signature "
 				   "mismatches with '%s'\n", stored_curve_name,
-				   params.curve_name);
+				   params->curve_name);
 			goto error;
 		}
 
@@ -334,22 +322,21 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 		if (stored_sig_type != sig_type) 
 		{
 			printf("Error: signature type imported from signature "
-				   "mismatches with %s\n", ec_sig_name);
+				   "mismatches with\n");
 			goto error;
 		}
 		if (stored_hash_type != hash_type) 
 		{
 			printf("Error: hash algorithm type imported from "
-				   "signature mismatches with %s\n",
-				   hash_algorithm);
+				   "signature mismatches with\n");
 			goto error;
 		}
 		if (!are_str_equal((char *)stored_curve_name,
-			   (char *)params.curve_name)) 
+			   (char *)params->curve_name)) 
 		{
 			printf("Error: curve type '%s' imported from signature "
 				   "mismatches with '%s'\n", stored_curve_name,
-				   params.curve_name);
+				   params->curve_name);
 			goto error;
 		}
 		exp_len += sizeof(hdr);
@@ -359,17 +346,7 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 		/* Read the raw signature from the signature file */
 		exp_len = raw_data_len;
 	}
-//  if (pubkey->type == EVP_PKEY_RSA)
-//    EVP_VerifyInit (md_ctx, RSA_MD());
-//  else if (pubkey->type == EVP_PKEY_DSA)
-//    EVP_VerifyInit (md_ctx, DSA_MD());
-//  else {
-//    ret=INVALID_SIGNATURE_SCHEME;
-//    goto error;
-//  }
 
-//  EVP_VerifyUpdate (md_ctx, input->t_data, input->length);
-//  ret = EVP_VerifyFinal (md_ctx, sign->signature, sign->length, pubkey);
 	ret = ec_verify_init(&verif_ctx, &pub_key, sig, siglen,
 						 sig_type, hash_type);
 	if (ret) {

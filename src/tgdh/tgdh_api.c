@@ -509,7 +509,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
         goto error;
       }
       /* Before merging the tree, we need to verify signature */
-      result=tgdh_vrfy_sign ((*ctx), new_ctx, tmp_list->token,
+      result=tgdh_vrfy_asign ((*ctx), new_ctx, tmp_list->token,
                              info->sender_name, sign, params);
       if(result!=OK) goto error;
         
