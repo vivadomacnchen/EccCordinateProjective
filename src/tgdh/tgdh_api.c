@@ -86,7 +86,7 @@ static char *version;
  *   session random for the member
  */
 int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
-                    CLQ_NAME *group_name,const ec_params *params)
+                    CLQ_NAME *group_name,ec_params *params)
 {
   int ret=OK;
 
@@ -410,7 +410,7 @@ error:
  */
 int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
                  CLQ_NAME *users_leaving[], 
-                 TOKEN_LIST *list, CLQ_TOKEN **output,const ec_params *params){
+                 TOKEN_LIST *list, CLQ_TOKEN **output,ec_params *params){
   TGDH_TOKEN_INFO *info=NULL;
   int i=0;
   TGDH_SIGN *sign=NULL;

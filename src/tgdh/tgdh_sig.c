@@ -161,7 +161,7 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
 
 int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
                    CLQ_TOKEN *input, CLQ_NAME *member_name,
-				   TGDH_SIGN *sign, const ec_params *params, const char *in_sig_fname)
+				   TGDH_SIGN *sign, ec_params *params, const char *in_sig_fname)
 { 
 	int ret=OK;
 	//EVP_MD_CTX *md_ctx=NULL;
@@ -228,9 +228,9 @@ int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 //		goto error;
 //	}
 	/* Import the parameters */
-	import_params(&params, ec_str_p);
+	import_params(params, ec_str_p);
 
-	ret = ec_get_sig_len(&params, sig_type, hash_type, &siglen);
+	ret = ec_get_sig_len(params, sig_type, hash_type, &siglen);
 	if (ret) 
 	{
 		printf("Error getting effective signature length from %s\n",

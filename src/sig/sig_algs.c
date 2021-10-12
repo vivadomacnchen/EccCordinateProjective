@@ -183,7 +183,7 @@ err:
  * Compute generic effective signature length depending on the curve parameters,
  * the signature algorithm and the hash function
  */
-int ec_get_sig_len(const ec_params *params, ec_sig_alg_type sig_type,
+int ec_get_sig_len(ec_params *params, ec_sig_alg_type sig_type,
 		   hash_alg_type hash_type, u8 *siglen)
 {
 	const ec_sig_mapping *sm;

@@ -66,7 +66,7 @@ int tgdh_sign_message(TGDH_CONTEXT *ctx, CLQ_TOKEN *input, ec_key_pair key_pair,
 
 int tgdh_vrfy_sign(TGDH_CONTEXT *ctx, TGDH_CONTEXT *new_ctx,
 		   CLQ_TOKEN *input,  CLQ_NAME *member_name,
-		   TGDH_SIGN *sign, const ec_params *params, const char *in_sig_fname);
+		   TGDH_SIGN *sign, ec_params *params, const char *in_sig_fname);
 
 int tgdh_remove_sign(CLQ_TOKEN *input, TGDH_SIGN **sign);
 int tgdh_restore_sign(CLQ_TOKEN *input, TGDH_SIGN **signature);

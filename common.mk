@@ -46,7 +46,7 @@ ifneq ($(CLANG),)
 WARNING_CFLAGS = -Weverything -Werror \
 		 -Wno-reserved-id-macro -Wno-padded \
 		 -Wno-packed -Wno-covered-switch-default \
-		 -Wno-used-but-marked-unused
+		 -Wno-used-but-marked-unused -Wno-switch-enum
 else
 #ccw-
 #WARNING_CFLAGS = -W -Werror -Wextra -Wall -Wunreachable-code

@@ -580,7 +580,7 @@ static int sign_bin_file(const char *ec_name, const char *ec_sig_name,
 		printf("Error: cannot retrieve file %s size\n", in_fname);
 		goto err;
 	}
-	ret = ec_get_sig_len(&params, sig_type, hash_type, &siglen);
+	ret = ec_get_sig_len(params, sig_type, hash_type, &siglen);
 	if (ret) {
 		printf("Error getting effective signature length from %s\n",
 		       (const char *)(ec_str_p->name->buf));
@@ -784,7 +784,7 @@ static int verify_bin_file(const char *ec_name, const char *ec_sig_name,
 	/* Import the parameters */
 	import_params(&params, ec_str_p);
 
-	ret = ec_get_sig_len(&params, sig_type, hash_type, &siglen);
+	ret = ec_get_sig_len(params, sig_type, hash_type, &siglen);
 	if (ret) {
 		printf("Error getting effective signature length from %s\n",
 		       (const char *)(ec_str_p->name->buf));

@@ -175,7 +175,7 @@ typedef struct tree_list {
  *   session random for the member
  */
 int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
-                    CLQ_NAME *group_name,const ec_params *params); 
+                    CLQ_NAME *group_name,ec_params *params); 
 
 /* tgdh_merge_req is called by every members in both groups and only
  * the sponsors will return a output token
@@ -191,7 +191,7 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
  */
 int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name, 
                     CLQ_NAME *group_name, CLQ_NAME *users_leaving[],
-                    CLQ_TOKEN **output,const ec_params *params);
+                    CLQ_TOKEN **output,ec_params *params);
 
 /* tgdh_cascade is called by every member several times until every
  * member can compute the new group key when network faults occur.
@@ -205,7 +205,7 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
  */
 int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
                  CLQ_NAME *users_leaving[],
-                 TOKEN_LIST *list, CLQ_TOKEN **output,const ec_params *params);
+                 TOKEN_LIST *list, CLQ_TOKEN **output,ec_params *params);
 
 /* tgdh_create_ctx creates the tree context.
  * Preconditions: *ctx has to be NULL.
@@ -213,7 +213,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
 int tgdh_create_ctx(TGDH_CONTEXT **ctx);
 
 /* tgdh_compute_bkey: Computes and returns bkey */
-nn *tgdh_compute_bkey (ec_key_pair *kp, const ec_params *params, ec_sig_alg_type ec_key_alg);//(nn *key, DSA *params);
+nn *tgdh_compute_bkey (ec_key_pair *kp, ec_params *params, ec_sig_alg_type ec_key_alg);//(nn *key, DSA *params);
 
 /* tgdh_rand: Generates a new random number of "params->q" bits, using
  *   the default parameters.
