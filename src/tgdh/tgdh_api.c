@@ -182,7 +182,7 @@ error:
  */
 int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name, 
                     CLQ_NAME *group_name, CLQ_NAME *users_leaving[],
-                    CLQ_TOKEN **output,const ec_params *params)
+                    CLQ_TOKEN **output,ec_params *params)
 {
   int ret=OK;
   TGDH_TOKEN_INFO *info=NULL;
@@ -853,7 +853,7 @@ error:
 //
 //  return new_bkey;
 //}
-nn *tgdh_compute_bkey(ec_key_pair *kp, const ec_params *params,
+nn *tgdh_compute_bkey(ec_key_pair *kp, ec_params *params,
 		    ec_sig_alg_type ec_key_alg)
 {
 	int ret = -1;

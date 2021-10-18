@@ -17,6 +17,7 @@
 #define __SIG_ALGS_H__
 
 #include "sig_algs_internal.h"
+#include "../../src/curves/ec_params.h"
 
 /*
  * Generic function to init a uninitialized public key from an initialized

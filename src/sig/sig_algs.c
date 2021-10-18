@@ -14,6 +14,8 @@
  *  See LICENSE file at the root folder of the project.
  */
 #include "sig_algs.h"
+#include "../../src/lib_ecc_types.h"
+
 
 /*
  * Generic function to init a uninitialized public key from an initialized
