@@ -69,6 +69,7 @@ cliques@ics.uci.edu. */
 #include "tgdh_api_misc.h" /* tgdh_get_time is defined here */
 #include "../nn/nn_rand.h"
 
+
 /* dmalloc CNR.  */
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -80,6 +81,8 @@ cliques@ics.uci.edu. */
 static ec_key_pair key_pair;
 static char *hdr_type;
 static char *version;
+static X509 *test_cert;
+#define X509_new() X509_dup(test_cert)
 
 /* tgdh_new_member is called by the new member in order to create its
  *   own context. Main functionality of this function is to generate
@@ -1783,7 +1786,9 @@ KEY_TREE *tgdh_copy_tree(KEY_TREE *src)
                    src->tgdh_nv->member->member_name,MAX_LGT_NAME);
         }
         if(src->tgdh_nv->member->cert != NULL){
-          dst->tgdh_nv->member->cert = X509_dup(src->tgdh_nv->member->cert);
+          //dst->tgdh_nv->member->cert = X509_dup(src->tgdh_nv->member->cert);
+		  //nn_copy(dst->tgdh_nv->member->cert, src->tgdh_nv->member->cert);
+			memcpy(dst->tgdh_nv->member->cert,src->tgdh_nv->member->cert,EC_MAX_SIGLEN);
         }
       }
     }
@@ -1902,7 +1907,7 @@ int tgdh_check_useful(KEY_TREE *newtree, KEY_TREE *mytree)
         return 1;
       }
       else{
-        if(BN_cmp(head_new->tgdh_nv->bkey, head_my->tgdh_nv->bkey) != 0){
+        if(nn_cmp(head_new->tgdh_nv->bkey, head_my->tgdh_nv->bkey) != 0){
           return 1;
         }
       }

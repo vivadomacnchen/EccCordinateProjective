@@ -66,9 +66,11 @@ typedef struct tgdh_name_list {
 /* TGDH_GM: Group member */
 typedef struct tgdh_gm_st {
   CLQ_NAME *member_name;
-  X509 *cert;   /* X.509 certificate
-                 * is not null, only if this is a leaf node
-                 */
+  u8 *cert;//[EC_MAX_SIGLEN];
+  //X509 *cert;   /* X.509 certificate
+  //               * is not null, only if this is a leaf node
+  //               */
+
 } TGDH_GM;
 
 /* TGDH_NV: Node Values for this node */

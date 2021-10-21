@@ -45,6 +45,7 @@ cliques@ics.uci.edu. */
 //#include "openssl/err.h"
 //#include "openssl/dsa.h"
 //#include "openssl/x509.h"
+#include "../openssl/x509.h"
 #include "../nn/nn.h"//ccw+
 #include "../sig/ecdsa.h"
 #include "../sig/ec_key.h"
@@ -193,137 +194,7 @@ typedef struct asn1_string_st ASN1_STRING;
 typedef int ASN1_BOOLEAN;
 typedef int ASN1_NULL;
 #endif
-typedef struct engine_st ENGINE;
-struct evp_pkey_st {
-    int type;
-    int save_type;
-    int references;
-    const EVP_PKEY_ASN1_METHOD *ameth;
-    ENGINE *engine;
-    union {
-        char *ptr;
-# ifndef OPENSSL_NO_RSA
-        struct rsa_st *rsa;     /* RSA */
-# endif
-# ifndef OPENSSL_NO_DSA
-        struct dsa_st *dsa;     /* DSA */
-# endif
-# ifndef OPENSSL_NO_DH
-        struct dh_st *dh;       /* DH */
-# endif
-# ifndef OPENSSL_NO_EC
-        struct ec_key_st *ec;   /* ECC */
-# endif
-    } pkey;
-    int save_parameters;
-    STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */
-} /* EVP_PKEY */ ;
 
-struct crypto_ex_data_st {
-    STACK_OF(void) *sk;
-    /* gcc is screwing up this data structure :-( */
-    int dummy;
-};
-DECLARE_STACK_OF(void)
-
-typedef struct evp_pkey_st EVP_PKEY;
-
-typedef struct AUTHORITY_KEYID_st AUTHORITY_KEYID;
-typedef struct NAME_CONSTRAINTS_st NAME_CONSTRAINTS;
-typedef struct crypto_ex_data_st CRYPTO_EX_DATA;
-typedef struct X509_algor_st X509_ALGOR;
-typedef struct X509_crl_st X509_CRL;
-typedef struct x509_crl_method_st X509_CRL_METHOD;
-typedef struct x509_revoked_st X509_REVOKED;
-typedef struct X509_name_st X509_NAME;
-typedef struct X509_pubkey_st X509_PUBKEY;
-typedef struct x509_store_st X509_STORE;
-typedef struct x509_store_ctx_st X509_STORE_CTX;
-typedef struct X509_POLICY_NODE_st X509_POLICY_NODE;
-typedef struct X509_POLICY_LEVEL_st X509_POLICY_LEVEL;
-typedef struct X509_POLICY_TREE_st X509_POLICY_TREE;
-typedef struct X509_POLICY_CACHE_st X509_POLICY_CACHE;
-
-typedef struct ASN1_ENCODING_st 
-{
-    unsigned char *enc;         /* DER encoding */
-    long len;                   /* Length of encoding */
-    int modified;               /* set to 1 if 'enc' is invalid */
-} ASN1_ENCODING;
-
-typedef struct X509_val_st {
-    ASN1_TIME *notBefore;
-    ASN1_TIME *notAfter;
-} X509_VAL;
-
-typedef struct X509_req_info_st {
-    ASN1_ENCODING enc;
-    ASN1_INTEGER *version;
-    X509_NAME *subject;
-    X509_PUBKEY *pubkey;
-    /*  d=2 hl=2 l=  0 cons: cont: 00 */
-    STACK_OF(X509_ATTRIBUTE) *attributes; /* [ 0 ] */
-} X509_REQ_INFO;
-
-typedef struct X509_req_st {
-    X509_REQ_INFO *req_info;
-    X509_ALGOR *sig_alg;
-    ASN1_BIT_STRING *signature;
-    int references;
-} X509_REQ;
-
-typedef struct x509_cinf_st {
-    ASN1_INTEGER *version;      /* [ 0 ] default of v1 */
-    ASN1_INTEGER *serialNumber;
-    X509_ALGOR *signature;
-    X509_NAME *issuer;
-    X509_VAL *validity;
-    X509_NAME *subject;
-    ec_pub_key *key;//X509_PUBKEY *key;
-    ASN1_BIT_STRING *issuerUID; /* [ 1 ] optional in v2 */
-    ASN1_BIT_STRING *subjectUID; /* [ 2 ] optional in v2 */
-    STACK_OF(X509_EXTENSION) *extensions; /* [ 3 ] optional in v3 */
-    ASN1_ENCODING enc;
-} X509_CINF;
-
-typedef struct x509_cert_aux_st {
-    STACK_OF(ASN1_OBJECT) *trust; /* trusted uses */
-    STACK_OF(ASN1_OBJECT) *reject; /* rejected uses */
-    ASN1_UTF8STRING *alias;     /* "friendly name" */
-    ASN1_OCTET_STRING *keyid;   /* key id of private key */
-    STACK_OF(X509_ALGOR) *other; /* other unspecified info */
-} X509_CERT_AUX;
-
-struct x509_st {
-    X509_CINF *cert_info;
-    X509_ALGOR *sig_alg;
-    ASN1_BIT_STRING *signature;
-    int valid;
-    int references;
-    char *name;
-    CRYPTO_EX_DATA ex_data;
-    /* These contain copies of various extension values */
-    long ex_pathlen;
-    long ex_pcpathlen;
-    unsigned long ex_flags;
-    unsigned long ex_kusage;
-    unsigned long ex_xkusage;
-    unsigned long ex_nscert;
-    ASN1_OCTET_STRING *skid;
-    AUTHORITY_KEYID *akid;
-    X509_POLICY_CACHE *policy_cache;
-    STACK_OF(DIST_POINT) *crldp;
-    STACK_OF(GENERAL_NAME) *altname;
-    NAME_CONSTRAINTS *nc;
-# ifndef OPENSSL_NO_RFC3779
-    STACK_OF(IPAddressFamily) *rfc3779_addr;
-    struct ASIdentifiers_st *rfc3779_asid;
-# endif
-# ifndef OPENSSL_NO_SHA
-    unsigned char sha1_hash[SHA_DIGEST_LENGTH];
-# endif
-    X509_CERT_AUX *aux;
-} /* X509 */ ;
 
 
 

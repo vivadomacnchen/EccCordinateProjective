@@ -50,6 +50,7 @@ cliques@ics.uci.edu. */
 #include "tgdh_sig.h"
 #include "../sig/sig_algs_internal.h"
 #include "../sig/sig_algs.h"
+#include "../openssl/x509.h"
 #ifdef SIG_TIMING
 #include "tgdh_api_misc.h" /* tgdh_get_time is defined here */
 #endif
