@@ -190,9 +190,9 @@ DSA *clq_get_dsa_key (char *member_name, enum CLQ_KEY_TYPE type) {
 /* The main idea of this function was obtained from apps/dsa.c */
 /* If member_name is NULL then DSA parameters will be read from disk ! */
 /* For private keys ONLY ! */
-EVP_PKEY *clq_get_pkey (char *member_name) {
+struct ec_pub_key *clq_get_pkey (char *member_name) {
   BIO *in=NULL;
-  EVP_PKEY *pkey=NULL;
+  ec_pub_key *pkey=NULL;
   char infile[MAX_LGT_NAME*2];
   
   char *path = NULL;
@@ -229,7 +229,7 @@ EVP_PKEY *clq_get_pkey (char *member_name) {
   }
   
   /* FORMAT_PEM */
-  pkey=(EVP_PKEY *)PEM_read_bio_PrivateKey(in,NULL,NULL,NULL);
+  //pkey=(EVP_PKEY *)PEM_read_bio_PrivateKey(in,NULL,NULL,NULL);
   
   if (pkey == NULL) {
 #ifdef PRINT_CERT_ERRORS

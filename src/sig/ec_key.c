@@ -334,7 +334,7 @@ int ec_structured_priv_key_export_to_buf(const ec_priv_key *priv_key,
  * The structure allows some sanity checks.
  */
 int ec_structured_pub_key_import_from_buf(ec_pub_key *pub_key,
-					  const ec_params *params,
+					  ec_params *params,
 					  const u8 *pub_key_buf,
 					  u8 pub_key_buf_len,
 					  ec_sig_alg_type ec_key_alg)
@@ -487,7 +487,7 @@ int ec_structured_key_pair_import_from_priv_key_buf(ec_key_pair *kp,
  * The function does not verify the coherency between private and public parts.
  */
 int ec_structured_key_pair_import_from_buf(ec_key_pair *kp,
-					   const ec_params *params,
+					   ec_params *params,
 					   const u8 *priv_key_buf,
 					   u8 priv_key_buf_len,
 					   const u8 *pub_key_buf,

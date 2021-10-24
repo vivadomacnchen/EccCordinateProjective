@@ -66,8 +66,7 @@ typedef struct tgdh_name_list {
 /* TGDH_GM: Group member */
 typedef struct tgdh_gm_st {
   CLQ_NAME *member_name;
-  u8 *cert;//[EC_MAX_SIGLEN];
-  //X509 *cert;   /* X.509 certificate
+  X509 *cert;   /* X.509 certificate
   //               * is not null, only if this is a leaf node
   //               */
 
@@ -82,12 +81,13 @@ typedef struct tgdh_nv {
                   * left child has 2 * index as the index, and 
                   * right child has 2 * index + 1 has the index
                   */
-  nn *key;   /* key if it is on the key-path
-                  * null otherwise
-                  */
-  nn *bkey;  /* blinded key if it is on the co-path or key-path
-                  * null otherwise
-                  */
+//  nn *key;   /* key if it is on the key-path
+//                  * null otherwise
+//                  */
+//  nn *bkey;  /* blinded key if it is on the co-path or key-path
+//                  * null otherwise
+//                  */
+  ec_key_pair *kp;
   unsigned int joinQ;    /* True(1) if this node is joinable
                   * False(0) otherwise
                   */
@@ -137,7 +137,10 @@ typedef struct tgdh_context_st {
   KEY_TREE *root;
   KEY_TREE *cache;
   ec_params *params;
-  EVP_PKEY *pkey;
+  //EVP_PKEY *pkey;
+  //
+  ec_key_pair *kp;
+  //
   int status;
   int merge_token;
   nn *tmp_key;
@@ -177,7 +180,7 @@ typedef struct tree_list {
  *   session random for the member
  */
 int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
-                    CLQ_NAME *group_name,ec_params *params); 
+                    CLQ_NAME *group_name,ec_params *params,const ec_str_params *in_str_params); 
 
 /* tgdh_merge_req is called by every members in both groups and only
  * the sponsors will return a output token
@@ -215,7 +218,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
 int tgdh_create_ctx(TGDH_CONTEXT **ctx);
 
 /* tgdh_compute_bkey: Computes and returns bkey */
-nn *tgdh_compute_bkey (ec_key_pair *kp, ec_params *params, ec_sig_alg_type ec_key_alg);//(nn *key, DSA *params);
+int tgdh_compute_bkey (ec_key_pair *kp, ec_params *params, ec_sig_alg_type ec_key_alg);//(nn *key, DSA *params);
 
 /* tgdh_rand: Generates a new random number of "params->q" bits, using
  *   the default parameters.

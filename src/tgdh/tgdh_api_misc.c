@@ -50,7 +50,7 @@ cliques@ics.uci.edu. */
 #include <unistd.h>
 #include <malloc.h>
 //#include <math.h>
-
+#include "../utils/print_keys.h"
 #ifdef TIMING
 /* Needed by getrusgae */
 #include <sys/time.h>
@@ -160,9 +160,9 @@ void tgdh_simple_node_print(KEY_TREE *tree){
     tmp_tree = tgdh_search_index(tree, i);
     if(tmp_tree == NULL) fprintf(ERR_STRM,"   ");
     else{
-    if(tmp_tree->tgdh_nv->key != NULL) fprintf(ERR_STRM, "+ ");
+    if(tmp_tree->tgdh_nv->kp->priv_key != NULL) fprintf(ERR_STRM, "+ ");
     else fprintf(ERR_STRM, "- ");
-    if(tmp_tree->tgdh_nv->bkey != NULL) fprintf(ERR_STRM, "+");
+    if(tmp_tree->tgdh_nv->kp->pub_key != NULL) fprintf(ERR_STRM, "+");
     else fprintf(ERR_STRM, "-");
     }
     for(k=0; k<(int)(pow(2, tree->tgdh_nv->height+3 - 
@@ -234,13 +234,13 @@ void tgdh_print_node(char *name, KEY_TREE *tree) {
     if(tree->tgdh_nv->num_node > -2)
       fprintf(ERR_STRM,"num_node  = %d\n\t", tree->tgdh_nv->num_node);
     else fprintf(ERR_STRM,"num_node  = NULL\n\t");
-    if(tree->tgdh_nv->key != NULL){
-	  priv_key_print("key  = ", tree->tgdh_nv->key);
+    if(priv_key_is_initialized(&(tree->tgdh_nv->kp->priv_key))!=0){//if(tree->tgdh_nv->kp->priv_key != NULL){
+	  priv_key_print("key  = ", &(tree->tgdh_nv->kp->priv_key));
     }
     else fprintf(ERR_STRM,"key  = NULL");
-    if(tree->tgdh_nv->bkey != NULL){
+    if(pub_key_is_initialized(&(tree->tgdh_nv->kp->priv_key))!=0){//if(tree->tgdh_nv->kp->pub_key != NULL){
       //fprintf(ERR_STRM,"\n\tbkey = ");
-	  pub_key_print("\n\tbkey = ", tree->tgdh_nv->bkey);
+	  pub_key_print("\n\tbkey = ", &(tree->tgdh_nv->kp->pub_key));
     }
     else fprintf(ERR_STRM,"\n\tbkey = NULL");
     fprintf(ERR_STRM,"\n\tmypt      = %x\t", (int)tree);
@@ -291,14 +291,14 @@ void tgdh_print_bkey(char *name, KEY_TREE *tree) {
       else fprintf(ERR_STRM, "name = NUL ");  
     }
     else fprintf(ERR_STRM, "name = NUL ");  
-    if(tree->tgdh_nv->bkey != NULL){
+    if(pub_key_is_initialized(&(tree->tgdh_nv->kp->pub_key))!=0){//if(tree->tgdh_nv->kp->pub_key != NULL){
       fprintf(ERR_STRM,"\n\tbkey =");
-      BN_print_fp(ERR_STRM, tree->tgdh_nv->bkey);
+      pub_key_print("\npub_key=", &(tree->tgdh_nv->kp->pub_key));
     }
     else fprintf(ERR_STRM,"\n\tbkey = NUL       ");
-    if(tree->tgdh_nv->key != NULL){
+    if(priv_key_is_initialized(&(tree->tgdh_nv->kp->priv_key))!=0){//if(tree->tgdh_nv->kp->priv_key != NULL){
       fprintf(ERR_STRM,"\n\tkey  =");
-      BN_print_fp(ERR_STRM, tree->tgdh_nv->key);
+      priv_key_print("\npriv_key=", &(tree->tgdh_nv->kp->priv_key));
     }
     else fprintf(ERR_STRM,"\n\tkey  = NUL");
     fprintf(ERR_STRM,"\n");
@@ -313,12 +313,12 @@ int compare_key(TGDH_CONTEXT *ctx[], int num) {
 
   for(i=0; i<num; i++)
     if(ctx[i])
-      if(ctx[i]->root->tgdh_nv->key)
-        tmp_key=ctx[i]->root->tgdh_nv->key;
+      if(priv_key_is_initialized(&(ctx[i]->root->tgdh_nv->kp->priv_key))==0)//if(ctx[i]->root->tgdh_nv->kp->priv_key)
+        tmp_key=&(ctx[i]->root->tgdh_nv->kp->priv_key.x);
     
   for(i=0; i<num; i++){
     if(ctx[i] != NULL){
-      if(nn_cmp(tmp_key, ctx[i]->root->tgdh_nv->key) != 0){
+      if(nn_cmp(tmp_key, &(ctx[i]->root->tgdh_nv->kp->priv_key.x)) != 0){
         fprintf(stderr, "()()())(()()()()()()()()()\n");
         return -1;
       }

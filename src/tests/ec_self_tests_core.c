@@ -20,7 +20,7 @@
 #include "../external_deps/print.h"
 
 
-static int ec_gen_import_export_kp(ec_key_pair *kp, const ec_params *params,
+static int ec_gen_import_export_kp(ec_key_pair *kp, ec_params *params,
 				   const ec_test_case *c)
 {
 	u8 pub_key_buf[EC_STRUCTURED_PUB_KEY_MAX_EXPORT_SIZE];

@@ -41,10 +41,9 @@ cliques@ics.uci.edu. */
  *********************************************************************/
 #ifndef CLQ_CERT_H
 #define CLQ_CERT_H
-//#include "openssl/bio.h"
-//#include "openssl/err.h"
-//#include "openssl/dsa.h"
-//#include "openssl/x509.h"
+#include "../openssl/bio.h"
+#include "../openssl/err.h"
+#include "../openssl/dsa.h"
 #include "../openssl/x509.h"
 #include "../nn/nn.h"//ccw+
 #include "../sig/ecdsa.h"
@@ -72,26 +71,6 @@ typedef unsigned int clq_uint;
 #define LENGTH_SIZE 4 /* The length of the size in a token */
 #define TOTAL_INT INT_SIZE+LENGTH_SIZE
 #define MAX_LIST 200 /* Maximum number of members */ 
-typedef struct stack_st {
-    int num;
-    char **data;
-    int sorted;
-    int num_alloc;
-    int (*comp) (const void *, const void *);
-} _STACK;
-#define STACK_OF(type) struct stack_st_##type
-# define PREDECLARE_STACK_OF(type) STACK_OF(type);
-
-# define DECLARE_STACK_OF(type) \
-STACK_OF(type) \
-    { \
-    _STACK stack; \
-    };
-# define DECLARE_SPECIAL_STACK_OF(type, type2) \
-STACK_OF(type) \
-    { \
-    _STACK stack; \
-    };
 
 #ifndef FALSE
 #define FALSE 0
@@ -151,60 +130,7 @@ typedef struct clq_token_st {
   unsigned int length;//uint length;
   clq_uchar *t_data;
 } CLQ_TOKEN;
-//ccw+s
-#define BN_ULONG        unsigned int
-#define SHA_DIGEST_LENGTH 20
-typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 
-#ifdef NO_ASN1_TYPEDEFS
-#define ASN1_INTEGER            ASN1_STRING
-#define ASN1_ENUMERATED         ASN1_STRING
-#define ASN1_BIT_STRING         ASN1_STRING
-#define ASN1_OCTET_STRING       ASN1_STRING
-#define ASN1_PRINTABLESTRING    ASN1_STRING
-#define ASN1_T61STRING          ASN1_STRING
-#define ASN1_IA5STRING          ASN1_STRING
-#define ASN1_UTCTIME            ASN1_STRING
-#define ASN1_GENERALIZEDTIME    ASN1_STRING
-#define ASN1_TIME               ASN1_STRING
-#define ASN1_GENERALSTRING      ASN1_STRING
-#define ASN1_UNIVERSALSTRING    ASN1_STRING
-#define ASN1_BMPSTRING          ASN1_STRING
-#define ASN1_VISIBLESTRING      ASN1_STRING
-#define ASN1_UTF8STRING         ASN1_STRING
-#define ASN1_BOOLEAN            int
-#define ASN1_NULL               int
-#else
-typedef struct asn1_string_st ASN1_INTEGER;
-typedef struct asn1_string_st ASN1_ENUMERATED;
-typedef struct asn1_string_st ASN1_BIT_STRING;
-typedef struct asn1_string_st ASN1_OCTET_STRING;
-typedef struct asn1_string_st ASN1_PRINTABLESTRING;
-typedef struct asn1_string_st ASN1_T61STRING;
-typedef struct asn1_string_st ASN1_IA5STRING;
-typedef struct asn1_string_st ASN1_GENERALSTRING;
-typedef struct asn1_string_st ASN1_UNIVERSALSTRING;
-typedef struct asn1_string_st ASN1_BMPSTRING;
-typedef struct asn1_string_st ASN1_UTCTIME;
-typedef struct asn1_string_st ASN1_TIME;
-typedef struct asn1_string_st ASN1_GENERALIZEDTIME;
-typedef struct asn1_string_st ASN1_VISIBLESTRING;
-typedef struct asn1_string_st ASN1_UTF8STRING;
-typedef struct asn1_string_st ASN1_STRING;
-typedef int ASN1_BOOLEAN;
-typedef int ASN1_NULL;
-#endif
-
-
-
-
-typedef struct ecdsa_verify_data dsa_st;
-typedef struct ec_pub_key NN_PKEY;
-typedef struct dsa_st DSA;
-//
-typedef struct x509_st X509;
-//
-//ccw+e
 #ifdef TIMING
 double clq_gettimeofday(void);
 #endif
@@ -212,7 +138,7 @@ double clq_gettimeofday(void);
 DSA *clq_get_dsa_key (char *member_name, 
                       enum CLQ_KEY_TYPE type);
 
-struct EVP_PKEY *clq_get_pkey (char *member_name);
+struct ec_pub_key *clq_get_pkey (char *member_name);
 
 DSA *clq_get_dsa_param();
 

@@ -767,7 +767,7 @@ static int verify_bin_file(const char *ec_name, const char *ec_sig_name,
 	ec_pub_key pub_key;
 	FILE *in_key_file;
 	FILE *in_sig_file;
-	ec_params params;
+	ec_params *params;
 	metadata_hdr hdr;
 	size_t exp_len;
 	FILE *in_file;
@@ -782,7 +782,7 @@ static int verify_bin_file(const char *ec_name, const char *ec_sig_name,
 		goto err;
 	}
 	/* Import the parameters */
-	import_params(&params, ec_str_p);
+	import_params(params, ec_str_p);
 
 	ret = ec_get_sig_len(params, sig_type, hash_type, &siglen);
 	if (ret) {
@@ -801,7 +801,7 @@ static int verify_bin_file(const char *ec_name, const char *ec_sig_name,
 	pub_key_buf_len =(u8)fread(pub_key_buf, 1, sizeof(pub_key_buf),
 				   in_key_file);
 	fclose(in_key_file);
-	ret = ec_structured_pub_key_import_from_buf(&pub_key, &params,
+	ret = ec_structured_pub_key_import_from_buf(&pub_key, params,
 						    pub_key_buf,
 						    pub_key_buf_len, sig_type);
 	if (ret) {
@@ -909,10 +909,10 @@ static int verify_bin_file(const char *ec_name, const char *ec_sig_name,
 			goto err;
 		}
 		if (!are_str_equal((char *)stored_curve_name,
-				   (char *)params.curve_name)) {
+				   (char *)params->curve_name)) {
 			printf("Error: curve type '%s' imported from signature "
 			       "mismatches with '%s'\n", stored_curve_name,
-			       params.curve_name);
+			       params->curve_name);
 			goto err;
 		}
 

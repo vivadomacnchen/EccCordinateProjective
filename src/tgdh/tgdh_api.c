@@ -89,7 +89,7 @@ static X509 *test_cert;
  *   session random for the member
  */
 int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
-                    CLQ_NAME *group_name,ec_params *params)
+                    CLQ_NAME *group_name,ec_params *params,const ec_str_params *in_str_params)
 {
   int ret=OK;
 
@@ -109,10 +109,11 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
   if (((*ctx)->group_name) == NULL) { ret=MALLOC_ERROR; goto error; }
   strncpy((*ctx)->group_name,group_name,MAX_LGT_NAME);
   /* Get DSA parameters */
-  (*ctx)->params=clq_read_dsa(NULL,CLQ_PARAMS);
-  if ((*ctx)->params == (DSA *)NULL) { ret=INVALID_DSA_PARAMS; goto error; }
+  //(*ctx)->params=clq_read_dsa(NULL,CLQ_PARAMS);//ccw-
+  import_params((*ctx)->params, in_str_params);//ccw+
+  if ((*ctx)->params == NULL) { ret=INVALID_DSA_PARAMS; goto error; }
   /* Get user private and public keys */
-  (*ctx)->pkey=clq_get_pkey(member_name);
+  (*ctx)->kp->pub_key = *(clq_get_pkey(member_name));
   if (((*ctx)->pkey) == (EVP_PKEY*) NULL) { ret=INVALID_PRIV_KEY; goto error; }
   
   (*ctx)->root->tgdh_nv=(TGDH_NV *) calloc(sizeof(TGDH_NV),1);
@@ -130,23 +131,24 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
   (*ctx)->root->tgdh_nv->joinQ=FALSE;
   
   /* I'm only member in my group... So key is same as my session random */
-  nn_get_random_mod((*ctx)->root->tgdh_nv->key,&(params->ec_gen_order));//(*ctx)->root->tgdh_nv->key=tgdh_rand((*ctx)->params);
-  if (nn_iszero((*ctx)->root->tgdh_nv->key) ||
-      (*ctx)->root->tgdh_nv->key==NULL)
+  nn_get_random_mod((*ctx)->root->tgdh_nv->kp->priv_key,&(params->ec_gen_order));//(*ctx)->root->tgdh_nv->kp->priv_key=tgdh_rand((*ctx)->params);
+  if (nn_iszero((*ctx)->root->tgdh_nv->kp->priv_key) ||
+      (*ctx)->root->tgdh_nv->kp->priv_key==NULL)
   {
     ret=MALLOC_ERROR;
     goto error;
   }
   /* group_secret is same as key */
   if((*ctx)->group_secret == NULL){
-    (*ctx)->group_secret=BN_dup((*ctx)->root->tgdh_nv->key);
+    //(*ctx)->group_secret=BN_dup((*ctx)->root->tgdh_nv->kp->priv_key);//ccw-
+	nn_copy((*ctx)->group_secret, (*ctx)->root->tgdh_nv->kp->priv_key);//ccw+
     if ((*ctx)->group_secret == (nn *) NULL) {
       ret=MALLOC_ERROR;
       goto error;
     }
   }
   else{
-    nn_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->key);
+    nn_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->kp->priv_key);
   }
   
   ret=tgdh_compute_secret_hash ((*ctx),params);
@@ -154,10 +156,14 @@ int tgdh_new_member(TGDH_CONTEXT **ctx, CLQ_NAME *member_name,
   (*ctx)->root->tgdh_nv->member->cert=NULL;
   
   /* Compute blinded Key */
-  //(*ctx)->root->tgdh_nv->bkey=
-  //  tgdh_compute_bkey((*ctx)->root->tgdh_nv->key, (*ctx)->params);
-  tgdh_compute_bkey((*ctx)->root->tgdh_nv->bkey, (*ctx)->params,ECDSA);
-  if((*ctx)->root->tgdh_nv->bkey== NULL){
+  //(*ctx)->root->tgdh_nv->kp->pub_key=
+  //  tgdh_compute_bkey((*ctx)->root->tgdh_nv->kp->priv_key, (*ctx)->params);
+  //tgdh_compute_bkey((*ctx)->root->tgdh_nv->kp->pub_key, (*ctx)->params,ECDSA);
+  if (tgdh_compute_bkey((*ctx)->root->tgdh_nv->kp->pub_keybkey, (*ctx)->params, ECDSA) != 0)
+  {
+	  goto error;
+  }
+  if((*ctx)->root->tgdh_nv->kp->pub_key== NULL){
     ret=MALLOC_ERROR;
     goto error;
   }
@@ -237,13 +243,13 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
   /* Remove keys and bkeys related with the sponsor */
   tmp_tree = the_sponsor;
   while(tmp_tree != NULL){
-    if(tmp_tree->tgdh_nv->bkey != NULL){
-      nn_uninit(tmp_tree->tgdh_nv->bkey);
-      tmp_tree->tgdh_nv->bkey = NULL;
+    if(tmp_tree->tgdh_nv->kp->pub_key != NULL){
+      nn_uninit(tmp_tree->tgdh_nv->kp->pub_key);
+      tmp_tree->tgdh_nv->kp->pub_key = NULL;
     }
-    if(tmp_tree->tgdh_nv->key != NULL){
-      nn_uninit(tmp_tree->tgdh_nv->key);
-      tmp_tree->tgdh_nv->key = NULL;
+    if(tmp_tree->tgdh_nv->kp->priv_key != NULL){
+      nn_uninit(tmp_tree->tgdh_nv->kp->priv_key);
+      tmp_tree->tgdh_nv->kp->priv_key = NULL;
     }
     tmp_tree = tmp_tree->parent;
   }
@@ -258,16 +264,16 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
   /* Now, I am the sponsor */
 
   /* Generate new key and bkeys for the sponsor */
-  nn_get_random_mod(the_sponsor->tgdh_nv->key,&(params->ec_gen_order));//the_sponsor->tgdh_nv->key=tgdh_rand(ctx->params);
-  //the_sponsor->tgdh_nv->bkey=
-  //  tgdh_compute_bkey(the_sponsor->tgdh_nv->key, ctx->params);
-  tgdh_compute_bkey(the_sponsor->tgdh_nv->bkey, ctx->params,ECDSA);
+  nn_get_random_mod(the_sponsor->tgdh_nv->kp->priv_key,&(params->ec_gen_order));//the_sponsor->tgdh_nv->kp->priv_key=tgdh_rand(ctx->params);
+  //the_sponsor->tgdh_nv->kp->pub_key=
+  //  tgdh_compute_bkey(the_sponsor->tgdh_nv->kp->priv_key, ctx->params);
+  tgdh_compute_bkey(the_sponsor->tgdh_nv->kp->pub_key, ctx->params,ECDSA);
   sponsor = 1;
   
   /* Now compute every key and bkey */
   tmp_tree = the_sponsor;
 
-  if(tmp_tree->parent->tgdh_nv->key != NULL){
+  if(tmp_tree->parent->tgdh_nv->kp->priv_key != NULL){
     fprintf(stderr, "Parent key is not null 1!\n");
     ret = STRUCTURE_ERROR;
     goto error;
@@ -278,34 +284,34 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
   else{
     tmp1_tree = tmp_tree->parent->right;
   }
-  while(tmp1_tree->tgdh_nv->bkey != NULL){
+  while(tmp1_tree->tgdh_nv->kp->pub_key != NULL){
     /* Compute intermediate keys until I can */
-    if(tmp_tree->parent->tgdh_nv->key != NULL){
+    if(tmp_tree->parent->tgdh_nv->kp->priv_key != NULL){
       fprintf(stderr, "Parent key is not null 2!\n");
       ret=STRUCTURE_ERROR;
       goto error;
     }
-    tmp_tree->parent->tgdh_nv->key = BN_new();
+    tmp_tree->parent->tgdh_nv->kp->priv_key = BN_new();
     sponsor = 1;
-    if(tmp_tree->parent->left->tgdh_nv->key != NULL){
+    if(tmp_tree->parent->left->tgdh_nv->kp->priv_key != NULL){
 /*
-      ret = BN_mod(tmp_tree->parent->left->tgdh_nv->key,    
-                   tmp_tree->parent->left->tgdh_nv->key,    
+      ret = BN_mod(tmp_tree->parent->left->tgdh_nv->kp->priv_key,    
+                   tmp_tree->parent->left->tgdh_nv->kp->priv_key,    
                    ctx->params->q, bn_ctx);                 
       if(ret != OK) goto error;                             
                                                             
-      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->key,        
-                     tmp_tree->parent->right->tgdh_nv->bkey,
-                     tmp_tree->parent->left->tgdh_nv->key,  
+      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->kp->priv_key,        
+                     tmp_tree->parent->right->tgdh_nv->kp->pub_key,
+                     tmp_tree->parent->left->tgdh_nv->kp->priv_key,  
                      ctx->params->p,bn_ctx);                
 */
 		/* compute out = tmp_rand mod q' */
-		nn_init(tmp_tree->parent->right->tgdh_nv->bkey, (u16)q_len);
+		nn_init(tmp_tree->parent->right->tgdh_nv->kp->pub_key, (u16)q_len);
 		/* Use nn_mod_notrim to avoid exposing the generated random length */
-		nn_mod_notrim(tmp_tree->parent->right->tgdh_nv->bkey, &(tmp_tree->parent->left->tgdh_nv->key), &qprime);
+		nn_mod_notrim(tmp_tree->parent->right->tgdh_nv->kp->pub_key, &(tmp_tree->parent->left->tgdh_nv->kp->priv_key), &qprime);
 
 		/* compute out += 1 */
-		nn_inc(tmp_tree->parent->right->tgdh_nv->bkey, tmp_tree->parent->right->tgdh_nv->bkey);
+		nn_inc(tmp_tree->parent->right->tgdh_nv->kp->pub_key, tmp_tree->parent->right->tgdh_nv->kp->pub_key);
 		if(nn_is_initialized(&qprime))
 		{
 			nn_uninit(&qprime);
@@ -317,22 +323,22 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
     }
     else{
 /*
-      ret = BN_mod(tmp_tree->parent->right->tgdh_nv->key,  
-                   tmp_tree->parent->right->tgdh_nv->key,  
+      ret = BN_mod(tmp_tree->parent->right->tgdh_nv->kp->priv_key,  
+                   tmp_tree->parent->right->tgdh_nv->kp->priv_key,  
                    ctx->params->q, bn_ctx);                
       if(ret != OK) goto error;                            
-      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->key,       
-                     tmp_tree->parent->left->tgdh_nv->bkey,
-                     tmp_tree->parent->right->tgdh_nv->key,
+      ret=BN_mod_exp(tmp_tree->parent->tgdh_nv->kp->priv_key,       
+                     tmp_tree->parent->left->tgdh_nv->kp->pub_key,
+                     tmp_tree->parent->right->tgdh_nv->kp->priv_key,
                      ctx->params->p,bn_ctx);               
 */
 		/* compute out = tmp_rand mod q' */
-		nn_init(tmp_tree->parent->left->tgdh_nv->bkey, (u16)q_len);
+		nn_init(tmp_tree->parent->left->tgdh_nv->kp->pub_key, (u16)q_len);
 		/* Use nn_mod_notrim to avoid exposing the generated random length */
-		nn_mod_notrim(tmp_tree->parent->right->tgdh_nv->bkey, &(tmp_tree->parent->left->tgdh_nv->key), &qprime);
+		nn_mod_notrim(tmp_tree->parent->right->tgdh_nv->kp->pub_key, &(tmp_tree->parent->left->tgdh_nv->kp->priv_key), &qprime);
 
 		/* compute out += 1 */
-		nn_inc(tmp_tree->parent->right->tgdh_nv->bkey, tmp_tree->parent->right->tgdh_nv->bkey);
+		nn_inc(tmp_tree->parent->right->tgdh_nv->kp->pub_key, tmp_tree->parent->right->tgdh_nv->kp->pub_key);
 		if(nn_is_initialized(&qprime))
 		{
 			nn_uninit(&qprime);
@@ -348,13 +354,13 @@ int tgdh_merge_req (TGDH_CONTEXT *ctx, CLQ_NAME *member_name,
     }
     
     /* Compute bkeys */
-    if(tmp_tree->parent->tgdh_nv->bkey != NULL){
-      nn_uninit(tmp_tree->parent->tgdh_nv->bkey);
-      tmp_tree->parent->tgdh_nv->bkey=NULL;
+    if(tmp_tree->parent->tgdh_nv->kp->pub_key != NULL){
+      nn_uninit(tmp_tree->parent->tgdh_nv->kp->pub_key);
+      tmp_tree->parent->tgdh_nv->kp->pub_key=NULL;
     }
-    //tmp_tree->parent->tgdh_nv->bkey
-    //  =tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->key, ctx->params);
-	tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->bkey, ctx->params,ECDSA);
+    //tmp_tree->parent->tgdh_nv->kp->pub_key
+    //  =tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->kp->priv_key, ctx->params);
+	tgdh_compute_bkey(tmp_tree->parent->tgdh_nv->kp->pub_key, ctx->params,ECDSA);
     
     if(tmp_tree->parent->parent == NULL) {
       break;
@@ -472,12 +478,12 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
               (*ctx)->member_name)== 0){
         new_information = 1;
         new_key_comp = 1;
-        if(sponsor_list[i]->tgdh_nv->key == NULL){
-          nn_get_random_mod(sponsor_list[i]->tgdh_nv->key,&(params->ec_gen_order));//sponsor_list[i]->tgdh_nv->key=tgdh_rand((*ctx)->params);
-          //sponsor_list[i]->tgdh_nv->bkey
-          //  =tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->key,
+        if(sponsor_list[i]->tgdh_nv->kp->priv_key == NULL){
+          nn_get_random_mod(sponsor_list[i]->tgdh_nv->kp->priv_key,&(params->ec_gen_order));//sponsor_list[i]->tgdh_nv->kp->priv_key=tgdh_rand((*ctx)->params);
+          //sponsor_list[i]->tgdh_nv->kp->pub_key
+          //  =tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->kp->priv_key,
           //                     (*ctx)->params);
-		  tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->bkey, (*ctx)->params,ECDSA);
+		  tgdh_compute_bkey(sponsor_list[i]->tgdh_nv->kp->pub_key, (*ctx)->params,ECDSA);
         }
         sponsor = 1;
       }
@@ -663,7 +669,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
     }
     if(tmp1_node != (*ctx)->root){
       while(tmp1_node->parent != NULL){
-        if(tmp1_node->parent->tgdh_nv->key == NULL){
+        if(tmp1_node->parent->tgdh_nv->kp->priv_key == NULL){
           break;
         }
         tmp1_node = tmp1_node->parent;
@@ -671,7 +677,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
     }
 
     if(tmp1_node != (*ctx)->root){
-      if(tmp1_node->parent->tgdh_nv->key != NULL){
+      if(tmp1_node->parent->tgdh_nv->kp->priv_key != NULL){
         fprintf(stderr, "PArent not null 2\n");
         result = STRUCTURE_ERROR;
         goto error;
@@ -682,45 +688,46 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
       else{
         tmp_node = tmp1_node->parent->right;
       }
-      while(tmp_node->tgdh_nv->bkey != NULL){
+      while(tmp_node->tgdh_nv->kp->pub_key != NULL){
         /* Compute intermediate keys until I can */
-        if(tmp1_node->parent->tgdh_nv->key != NULL){
+        if(tmp1_node->parent->tgdh_nv->kp->priv_key != NULL){
           fprintf(stderr, "PArent not null 2\n");
           result=STRUCTURE_ERROR;
           goto error;
         }
-        tmp1_node->parent->tgdh_nv->key = BN_new();
+        tmp1_node->parent->tgdh_nv->kp->priv_key = BN_new();
         new_key_comp = 1;
-        if(tmp1_node->parent->left->tgdh_nv->key != NULL){
-           result = BN_mod(tmp1_node->parent->left->tgdh_nv->key, 
-                           tmp1_node->parent->left->tgdh_nv->key, 
+        if(tmp1_node->parent->left->tgdh_nv->kp->priv_key != NULL){
+           result = BN_mod(tmp1_node->parent->left->tgdh_nv->kp->priv_key, 
+                           tmp1_node->parent->left->tgdh_nv->kp->priv_key, 
                            (*ctx)->params->ec_gen_order, bn_ctx); 
           if(result != OK) goto error;
-          result=BN_mod_exp(tmp1_node->parent->tgdh_nv->key, 
-                            tmp1_node->parent->right->tgdh_nv->bkey,
-                            tmp1_node->parent->left->tgdh_nv->key,
+          result=BN_mod_exp(tmp1_node->parent->tgdh_nv->kp->priv_key, 
+                            tmp1_node->parent->right->tgdh_nv->kp->pub_key,
+                            tmp1_node->parent->left->tgdh_nv->kp->priv_key,
                             (*ctx)->params->ec_gen_order,bn_ctx);
         }
         else{
-          result = BN_mod(tmp1_node->parent->right->tgdh_nv->key,
-                          tmp1_node->parent->right->tgdh_nv->key,
-                          (*ctx)->params->ec_gen_order, bn_ctx);
+//          result = BN_mod(tmp1_node->parent->right->tgdh_nv->ec_key_pair->pub_key,
+//                          tmp1_node->parent->right->tgdh_nv->kp->priv_key,
+//                          (*ctx)->params->ec_gen_order, bn_ctx);
+		  nn_mod(tmp1_node->parent->right->tgdh_nv->ec_key_pair->pub_key,tmp1_node->parent->right->tgdh_nv->ec_key_pair->pub_key,(*ctx)->params->ec_gen_order);
           if(result != OK) goto error;
-          result=BN_mod_exp(tmp1_node->parent->tgdh_nv->key,
-                            tmp1_node->parent->left->tgdh_nv->bkey,
-                            tmp1_node->parent->right->tgdh_nv->key,
+          result=BN_mod_exp(tmp1_node->parent->tgdh_nv->kp->priv_key,
+                            tmp1_node->parent->left->tgdh_nv->kp->pub_key,
+                            tmp1_node->parent->right->tgdh_nv->kp->priv_key,
                             (*ctx)->params->ec_fp.p,bn_ctx);
         }
         if(result != OK) goto error;
         
         /* Compute bkeys */
-        if(tmp1_node->parent->tgdh_nv->bkey != NULL){
-          nn_uninit(tmp1_node->parent->tgdh_nv->bkey);
-          tmp1_node->parent->tgdh_nv->bkey=NULL;
+        if(tmp1_node->parent->tgdh_nv->kp->pub_key != NULL){
+          nn_uninit(tmp1_node->parent->tgdh_nv->kp->pub_key);
+          tmp1_node->parent->tgdh_nv->kp->pub_key=NULL;
         }
-        //tmp1_node->parent->tgdh_nv->bkey
-        //  =tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->key, (*ctx)->params);
-        tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->bkey, (*ctx)->params,ECDSA);
+        //tmp1_node->parent->tgdh_nv->kp->pub_key
+        //  =tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->kp->priv_key, (*ctx)->params);
+        tgdh_compute_bkey(tmp1_node->parent->tgdh_nv->kp->pub_key, (*ctx)->params,ECDSA);
 
 
         if(tmp1_node->parent->parent == NULL) {
@@ -742,7 +749,7 @@ int tgdh_cascade(TGDH_CONTEXT **ctx, CLQ_NAME *group_name,
   
   
   
-  if((*ctx)->root->tgdh_nv->key != NULL){
+  if((*ctx)->root->tgdh_nv->kp->priv_key != NULL){
     if((*ctx)->status == CONTINUE){
       ret = KEY_COMPUTED;
       (*ctx)->status = KEY_COMPUTED;
@@ -776,10 +783,10 @@ error:
   }
 
   if(ret == OK){
-    if((*ctx)->root->tgdh_nv->key == NULL){
+    if((*ctx)->root->tgdh_nv->kp->priv_key == NULL){
       fprintf(stderr, "Key is NULL, but return is OK\n\n");
     }
-    nn_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->key);
+    nn_copy((*ctx)->group_secret,(*ctx)->root->tgdh_nv->kp->priv_key);
     result=tgdh_compute_secret_hash ((*ctx),params);
     (*ctx)->epoch++; /* Used inside tgdh_encode */
   }
@@ -856,24 +863,24 @@ error:
 //
 //  return new_bkey;
 //}
-nn *tgdh_compute_bkey(ec_key_pair *kp, ec_params *params,
+int tgdh_compute_bkey(ec_key_pair *kp, ec_params *params,
 		    ec_sig_alg_type ec_key_alg)
 {
-	int ret = -1;
+	int ret=OK;
+	nn new_bkey;
 
 	MUST_HAVE(kp != NULL);
 	MUST_HAVE(params != NULL);
 
 
 	/* Set key type and pointer to EC params for private key */
+	nn_init(&new_bkey, 0);
 	kp->priv_key.key_type = ec_key_alg;
 	kp->priv_key.params = (const ec_params *)params;
 	kp->priv_key.magic = PRIV_KEY_MAGIC;
 
 	/* Generate associated public key. */
 	ret = init_pubkey_from_privkey(&(kp->pub_key), &(kp->priv_key));
-
- err:
 	return ret;
 }
 
@@ -1062,13 +1069,13 @@ void tgdh_map_encode(clq_uchar *stream, unsigned int *pos, KEY_TREE *root)
   
   while(head != NULL){
     if(head->tgdh_nv->member == NULL){
-      if(head->tgdh_nv->bkey == NULL){
+      if(head->tgdh_nv->kp->pub_key == NULL){
         map = 0;
       }
       else map = 1;
     }
     else{
-      if(head->tgdh_nv->bkey == NULL){
+      if(head->tgdh_nv->kp->pub_key == NULL){
         map = 2;
       }
       else map = 3;
@@ -1079,8 +1086,8 @@ void tgdh_map_encode(clq_uchar *stream, unsigned int *pos, KEY_TREE *root)
     int_encode(stream, pos, head->tgdh_nv->index);
     int_encode(stream, pos, (unsigned int)head->tgdh_nv->potential);
     int_encode(stream, pos, head->tgdh_nv->joinQ);
-    if(head->tgdh_nv->bkey != NULL) 
-      bn_encode(stream, pos, head->tgdh_nv->bkey);
+    if(head->tgdh_nv->kp->pub_key != NULL) 
+      bn_encode(stream, pos, head->tgdh_nv->kp->pub_key);
     if(head->tgdh_nv->member != NULL) 
       string_encode(stream, pos, head->tgdh_nv->member->member_name);
     
@@ -1213,10 +1220,10 @@ int tgdh_map_decode(const CLQ_TOKEN *input, unsigned int *pos,
   if(!int_decode(input, pos, &((*ctx)->root->tgdh_nv->joinQ))) 
     return 0;
   
-  (*ctx)->root->tgdh_nv->key = (*ctx)->root->tgdh_nv->bkey = NULL;
+  (*ctx)->root->tgdh_nv->kp->priv_key = (*ctx)->root->tgdh_nv->kp->pub_key = NULL;
   if(map & 0x1){
-    (*ctx)->root->tgdh_nv->bkey = BN_new();
-    if(!bn_decode(input, pos, (*ctx)->root->tgdh_nv->bkey)) return 0;
+    (*ctx)->root->tgdh_nv->kp->pub_key = BN_new();
+    if(!bn_decode(input, pos, (*ctx)->root->tgdh_nv->kp->pub_key)) return 0;
   }
   if((map >> 1) & 0x1){
     (*ctx)->root->tgdh_nv->member 
@@ -1248,7 +1255,7 @@ int tgdh_map_decode(const CLQ_TOKEN *input, unsigned int *pos,
     else tmp_tree->left = tmp1_tree;
     tmp1_tree->tgdh_nv = (TGDH_NV *)calloc(sizeof(TGDH_NV),1);
     tmp1_tree->tgdh_nv->member = NULL;
-    tmp1_tree->tgdh_nv->key = tmp1_tree->tgdh_nv->bkey = NULL;
+    tmp1_tree->tgdh_nv->kp->priv_key = tmp1_tree->tgdh_nv->kp->pub_key = NULL;
     tmp1_tree->tgdh_nv->index = tmp_index;
     tmp1_tree->tgdh_nv->height = tmp1_tree->tgdh_nv->num_node=-1;
     tmp1_tree->left=tmp1_tree->right=NULL;
@@ -1258,8 +1265,8 @@ int tgdh_map_decode(const CLQ_TOKEN *input, unsigned int *pos,
     if(!int_decode(input, pos, &(tmp1_tree->tgdh_nv->joinQ))) 
       return 0;
     if(map & 0x1){
-      tmp1_tree->tgdh_nv->bkey = BN_new();
-      if(!bn_decode(input, pos, tmp1_tree->tgdh_nv->bkey)) return 0;
+      tmp1_tree->tgdh_nv->kp->pub_key = BN_new();
+      if(!bn_decode(input, pos, tmp1_tree->tgdh_nv->kp->pub_key)) return 0;
     }
     if((map >> 1) & 0x1){
       tmp1_tree->tgdh_nv->member=(TGDH_GM *)calloc(sizeof(TGDH_GM),1);
@@ -1402,7 +1409,7 @@ KEY_TREE *tgdh_merge_tree(KEY_TREE *joiner, KEY_TREE *joinee)
   /* Now, real values for the tmp_tree */
   tmp_tree->tgdh_nv=(TGDH_NV *)calloc(sizeof(TGDH_NV),1);
   tmp_tree->tgdh_nv->index = tmp_tree->left->tgdh_nv->index;
-  tmp_tree->tgdh_nv->key = tmp_tree->tgdh_nv->bkey = NULL; 
+  tmp_tree->tgdh_nv->kp->priv_key = tmp_tree->tgdh_nv->kp->pub_key = NULL; 
   
   /* I decide to change everything -_-''
    * It looks simple, but inefficient...
@@ -1771,11 +1778,11 @@ KEY_TREE *tgdh_copy_tree(KEY_TREE *src)
       dst->tgdh_nv->potential=src->tgdh_nv->potential;
       dst->tgdh_nv->height=src->tgdh_nv->height;
       dst->tgdh_nv->num_node=src->tgdh_nv->num_node;
-      if(src->tgdh_nv->key != NULL){
-        dst->tgdh_nv->key = BN_dup(src->tgdh_nv->key);
+      if(src->tgdh_nv->kp->priv_key != NULL){
+        dst->tgdh_nv->kp->priv_key = BN_dup(src->tgdh_nv->kp->priv_key);
       }
-      if(src->tgdh_nv->bkey != NULL){
-        dst->tgdh_nv->bkey = BN_dup(src->tgdh_nv->bkey);
+      if(src->tgdh_nv->kp->pub_key != NULL){
+        dst->tgdh_nv->kp->pub_key = BN_dup(src->tgdh_nv->kp->pub_key);
       }
       if(src->tgdh_nv->member != NULL){
         dst->tgdh_nv->member = (TGDH_GM *) calloc(sizeof(TGDH_GM),1);
@@ -1786,9 +1793,8 @@ KEY_TREE *tgdh_copy_tree(KEY_TREE *src)
                    src->tgdh_nv->member->member_name,MAX_LGT_NAME);
         }
         if(src->tgdh_nv->member->cert != NULL){
-          //dst->tgdh_nv->member->cert = X509_dup(src->tgdh_nv->member->cert);
+          dst->tgdh_nv->member->cert = X509_dup(src->tgdh_nv->member->cert);
 		  //nn_copy(dst->tgdh_nv->member->cert, src->tgdh_nv->member->cert);
-			memcpy(dst->tgdh_nv->member->cert,src->tgdh_nv->member->cert,EC_MAX_SIGLEN);
         }
       }
     }
@@ -1843,11 +1849,11 @@ void tgdh_copy_node(KEY_TREE *src, KEY_TREE *dst)
     dst->tgdh_nv->potential=src->tgdh_nv->potential;
     dst->tgdh_nv->height=src->tgdh_nv->height;
     dst->tgdh_nv->num_node=src->tgdh_nv->num_node;
-    if(src->tgdh_nv->key != NULL){
-      clq_swap((void *)&(src->tgdh_nv->key),(void *)&(dst->tgdh_nv->key));
+    if(src->tgdh_nv->kp->priv_key != NULL){
+      clq_swap((void *)&(src->tgdh_nv->kp->priv_key),(void *)&(dst->tgdh_nv->kp->priv_key));
     }
-    if(src->tgdh_nv->bkey != NULL){
-      clq_swap((void *)&(src->tgdh_nv->bkey),(void *)&(dst->tgdh_nv->bkey));
+    if(src->tgdh_nv->kp->pub_key != NULL){
+      clq_swap((void *)&(src->tgdh_nv->kp->pub_key),(void *)&(dst->tgdh_nv->kp->pub_key));
     }
     if(src->tgdh_nv->member != NULL){
       clq_swap((void *)&(src->tgdh_nv->member), (void *)&(dst->tgdh_nv->member));
@@ -1863,8 +1869,8 @@ void tgdh_swap_bkey(KEY_TREE *src, KEY_TREE *dst)
     tgdh_swap_bkey(src->right, dst->right);
   }
   if(src != NULL){
-    if((src->tgdh_nv->bkey != NULL) && (dst->tgdh_nv->bkey == NULL)){
-      clq_swap((void *)&(src->tgdh_nv->bkey),(void *)&(dst->tgdh_nv->bkey));
+    if((src->tgdh_nv->kp->pub_key != NULL) && (dst->tgdh_nv->kp->pub_key == NULL)){
+      clq_swap((void *)&(src->tgdh_nv->kp->pub_key),(void *)&(dst->tgdh_nv->kp->pub_key));
     }
   }
 }
@@ -1878,9 +1884,9 @@ void tgdh_copy_bkey(KEY_TREE *src, KEY_TREE *dst)
     tgdh_copy_bkey(src->right, dst->right);
   }
   if(src != NULL){
-    if(src->tgdh_nv->bkey != NULL){
-      if(dst->tgdh_nv->bkey == NULL){
-        dst->tgdh_nv->bkey = BN_dup(src->tgdh_nv->bkey);
+    if(src->tgdh_nv->kp->pub_key != NULL){
+      if(dst->tgdh_nv->kp->pub_key == NULL){
+        dst->tgdh_nv->kp->pub_key = BN_dup(src->tgdh_nv->kp->pub_key);
       }
     }
   }
@@ -1902,12 +1908,12 @@ int tgdh_check_useful(KEY_TREE *newtree, KEY_TREE *mytree)
   tgdh_init_bfs(mytree); 
   
   while(head_new != NULL){
-    if(head_new->tgdh_nv->bkey!=NULL){
-      if(head_my->tgdh_nv->bkey==NULL){
+    if(head_new->tgdh_nv->kp->pub_key!=NULL){
+      if(head_my->tgdh_nv->kp->pub_key==NULL){
         return 1;
       }
       else{
-        if(nn_cmp(head_new->tgdh_nv->bkey, head_my->tgdh_nv->bkey) != 0){
+        if(nn_cmp(head_new->tgdh_nv->kp->pub_key, head_my->tgdh_nv->kp->pub_key) != 0){
           return 1;
         }
       }
@@ -2015,13 +2021,13 @@ int remove_member(TGDH_CONTEXT *ctx, CLQ_NAME *users_leaving[],
       return MEMBER_NOT_IN_GROUP;
     }
     while(tmp1_node != NULL){
-      if(tmp1_node->tgdh_nv->bkey != NULL){
-        nn_uninit(tmp1_node->tgdh_nv->bkey);
-        tmp1_node->tgdh_nv->bkey = NULL;
+      if(tmp1_node->tgdh_nv->kp->pub_key != NULL){
+        nn_uninit(tmp1_node->tgdh_nv->kp->pub_key);
+        tmp1_node->tgdh_nv->kp->pub_key = NULL;
       }
-      if(tmp1_node->tgdh_nv->key != NULL){
-        nn_uninit(tmp1_node->tgdh_nv->key);
-        tmp1_node->tgdh_nv->key = NULL;
+      if(tmp1_node->tgdh_nv->kp->priv_key != NULL){
+        nn_uninit(tmp1_node->tgdh_nv->kp->priv_key);
+        tmp1_node->tgdh_nv->kp->priv_key = NULL;
       }
       tmp1_node = tmp1_node->parent;
     }
@@ -2138,23 +2144,23 @@ int remove_member(TGDH_CONTEXT *ctx, CLQ_NAME *users_leaving[],
     }
     
     tmp1_node = the_sponsor;
-    if(tmp1_node->tgdh_nv->bkey != NULL){
-      nn_uninit(tmp1_node->tgdh_nv->bkey);
-      tmp1_node->tgdh_nv->bkey = NULL;
+    if(tmp1_node->tgdh_nv->kp->pub_key != NULL){
+      nn_uninit(tmp1_node->tgdh_nv->kp->pub_key);
+      tmp1_node->tgdh_nv->kp->pub_key = NULL;
     }
-    if(tmp1_node->tgdh_nv->key != NULL){
-      nn_uninit(tmp1_node->tgdh_nv->key);
-      tmp1_node->tgdh_nv->key = NULL;
+    if(tmp1_node->tgdh_nv->kp->priv_key != NULL){
+      nn_uninit(tmp1_node->tgdh_nv->kp->priv_key);
+      tmp1_node->tgdh_nv->kp->priv_key = NULL;
     }
     tmp1_node = tmp1_node->parent;
     while(tmp1_node != NULL){
-      if(tmp1_node->tgdh_nv->bkey != NULL){
-        nn_uninit(tmp1_node->tgdh_nv->bkey);
-        tmp1_node->tgdh_nv->bkey = NULL;
+      if(tmp1_node->tgdh_nv->kp->pub_key != NULL){
+        nn_uninit(tmp1_node->tgdh_nv->kp->pub_key);
+        tmp1_node->tgdh_nv->kp->pub_key = NULL;
       }
-      if(tmp1_node->tgdh_nv->key != NULL){
-        nn_uninit(tmp1_node->tgdh_nv->key);
-        tmp1_node->tgdh_nv->key = NULL;
+      if(tmp1_node->tgdh_nv->kp->priv_key != NULL){
+        nn_uninit(tmp1_node->tgdh_nv->kp->priv_key);
+        tmp1_node->tgdh_nv->kp->priv_key = NULL;
       }
       tmp1_node = tmp1_node->parent;
     }
@@ -2264,16 +2270,16 @@ int find_sponsors(KEY_TREE *root, KEY_TREE *sponsor_list[])
       num_holes++;
     }
     else {
-      if((head->left->tgdh_nv->bkey != NULL) && (head->right->tgdh_nv->bkey != NULL)){
+      if((head->left->tgdh_nv->kp->pub_key != NULL) && (head->right->tgdh_nv->kp->pub_key != NULL)){
         holes[num_holes] = head;
         num_holes++;
       }
       else{
-        if(head->right->tgdh_nv->bkey == NULL){
+        if(head->right->tgdh_nv->kp->pub_key == NULL){
           tail->bfs = head->right;
           tail = tail->bfs;
         }
-        if(head->left->tgdh_nv->bkey == NULL){
+        if(head->left->tgdh_nv->kp->pub_key == NULL){
           tail->bfs = head->left;
           tail = tail->bfs;
         }
@@ -2348,13 +2354,13 @@ KEY_TREE *tgdh_merge(KEY_TREE *big_tree, KEY_TREE *small_tree)
   
   tmp1_node = joiner->parent;
   while(tmp1_node != NULL){
-    if(tmp1_node->tgdh_nv->key != NULL){
-      nn_uninit(tmp1_node->tgdh_nv->key);
-      tmp1_node->tgdh_nv->key = NULL;
+    if(priv_key_check_initialized(&(tmp1_node->tgdh_nv->kp->priv_key))!=0){//if(tmp1_node->tgdh_nv->kp->priv_key != NULL){
+      nn_uninit(tmp1_node->tgdh_nv->kp->priv_key->x);
+      tmp1_node->tgdh_nv->kp = NULL;//tmp1_node->tgdh_nv->kp->priv_key = NULL;
     }
-    if(tmp1_node->tgdh_nv->bkey != NULL){
-      nn_uninit(tmp1_node->tgdh_nv->bkey);
-      tmp1_node->tgdh_nv->bkey = NULL;
+    if(pub_key_check_initialized(&(tmp1_node->tgdh_nv->kp->pub_key))!=0){//if(tmp1_node->tgdh_nv->kp->pub_key != NULL){
+      prj_pt_uninit(tmp1_node->tgdh_nv->kp->pub_key->y);
+      tmp1_node->tgdh_nv->kp = NULL;//tmp1_node->tgdh_nv->kp->pub_key = NULL;
     }
     tmp1_node = tmp1_node->parent;
   }
